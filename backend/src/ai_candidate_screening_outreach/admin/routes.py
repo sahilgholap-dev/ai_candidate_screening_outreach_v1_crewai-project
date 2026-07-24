@@ -5,10 +5,11 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from ..audit import log_action
 from ..auth.deps import require_admin
 from ..auth.security import generate_temp_password, hash_password
 from ..db.database import get_db
-from ..db.models import Campaign, Company, User
+from ..db.models import AuditLog, Campaign, Company, User
 
 router = APIRouter(
     prefix="/api/admin", tags=["admin"], dependencies=[Depends(require_admin)]
@@ -155,9 +156,21 @@ def list_companies(db: Session = Depends(get_db)):
 
 
 @router.post("/companies", response_model=CompanyOut, status_code=status.HTTP_201_CREATED)
-def create_company(body: CompanyCreate, db: Session = Depends(get_db)):
+def create_company(
+    body: CompanyCreate,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
     company = Company(**body.model_dump())
     db.add(company)
+    db.flush()
+    log_action(
+        db,
+        "company.created",
+        user=admin,
+        company_id=company.id,
+        detail={"name": company.name, "allow_gender_eligibility": company.allow_gender_eligibility},
+    )
     db.commit()
     db.refresh(company)
     return _company_out(db, company)
@@ -169,10 +182,23 @@ def get_company(company_id: int, db: Session = Depends(get_db)):
 
 
 @router.patch("/companies/{company_id}", response_model=CompanyOut)
-def update_company(company_id: int, body: CompanyUpdate, db: Session = Depends(get_db)):
+def update_company(
+    company_id: int,
+    body: CompanyUpdate,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
     company = _get_company(db, company_id)
-    for key, value in body.model_dump(exclude_unset=True).items():
+    changes = body.model_dump(exclude_unset=True)
+    for key, value in changes.items():
         setattr(company, key, value)
+    log_action(
+        db,
+        "company.updated",
+        user=admin,
+        company_id=company.id,
+        detail={"changed_fields": sorted(changes.keys())},
+    )
     db.commit()
     db.refresh(company)
     return _company_out(db, company)
@@ -196,7 +222,12 @@ def list_company_users(company_id: int, db: Session = Depends(get_db)):
     response_model=UserCreated,
     status_code=status.HTTP_201_CREATED,
 )
-def create_company_user(company_id: int, body: UserCreate, db: Session = Depends(get_db)):
+def create_company_user(
+    company_id: int,
+    body: UserCreate,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
     company = _get_company(db, company_id)
     if not company.is_active:
         raise HTTPException(status_code=400, detail="Company is deactivated")
@@ -214,6 +245,9 @@ def create_company_user(company_id: int, body: UserCreate, db: Session = Depends
         is_active=True,
     )
     db.add(user)
+    log_action(
+        db, "user.created", user=admin, company_id=company_id, detail={"email": body.email}
+    )
     db.commit()
     db.refresh(user)
 
@@ -223,21 +257,39 @@ def create_company_user(company_id: int, body: UserCreate, db: Session = Depends
 
 
 @router.patch("/users/{user_id}", response_model=UserOut)
-def update_user(user_id: int, body: UserUpdate, db: Session = Depends(get_db)):
+def update_user(
+    user_id: int,
+    body: UserUpdate,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     if user.role == "platform_admin":
         raise HTTPException(status_code=403, detail="Admins cannot be managed via this endpoint")
-    for key, value in body.model_dump(exclude_unset=True).items():
+    changes = body.model_dump(exclude_unset=True)
+    for key, value in changes.items():
         setattr(user, key, value)
+    if "is_active" in changes:
+        log_action(
+            db,
+            "user.reactivated" if changes["is_active"] else "user.deactivated",
+            user=admin,
+            company_id=user.company_id,
+            detail={"email": user.email},
+        )
     db.commit()
     db.refresh(user)
     return user
 
 
 @router.post("/users/{user_id}/reset-password", response_model=UserCreated)
-def admin_reset_user_password(user_id: int, db: Session = Depends(get_db)):
+def admin_reset_user_password(
+    user_id: int,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -247,9 +299,38 @@ def admin_reset_user_password(user_id: int, db: Session = Depends(get_db)):
     temp_password = generate_temp_password()
     user.password_hash = hash_password(temp_password)
     user.must_reset_password = True
+    log_action(
+        db, "user.password_reset", user=admin, company_id=user.company_id, detail={"email": user.email}
+    )
     db.commit()
     db.refresh(user)
 
     return UserCreated(
         **UserOut.model_validate(user).model_dump(), temp_password=temp_password
     )
+
+
+# ---------- Audit trail ----------
+
+class AuditEntry(BaseModel):
+    id: int
+    created_at: datetime | None
+    user_email: str | None
+    company_id: int | None
+    action: str
+    detail: dict | None
+
+    class Config:
+        from_attributes = True
+
+
+@router.get("/audit", response_model=list[AuditEntry])
+def list_audit(
+    company_id: int | None = None,
+    limit: int = 200,
+    db: Session = Depends(get_db),
+):
+    q = db.query(AuditLog).order_by(AuditLog.id.desc())
+    if company_id is not None:
+        q = q.filter(AuditLog.company_id == company_id)
+    return q.limit(min(limit, 500)).all()

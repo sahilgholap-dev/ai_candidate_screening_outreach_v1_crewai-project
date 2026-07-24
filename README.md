@@ -58,4 +58,4 @@ TanStack Query, react-hook-form + zod.
 | 3 | Requirements Profile: structured campaign creation form (done) |
 | 4 | Pipeline rework: dynamic hard filters/weights, job queue, per-run isolation (done) |
 | 5 | Results & outreach review UI (done) |
-| 6 | Hardening & compliance: retention, audit log, region rules |
+| 6 | Hardening & compliance: retention, audit log, region rules (done) |

@@ -26,7 +26,13 @@ export default function AdminHome() {
     <div className="min-h-screen bg-muted/20">
       <UserHeader title="Companies" />
       <main className="p-6">
-        <div className="mb-4 flex justify-end">
+        <div className="mb-4 flex justify-end gap-2">
+          <Link
+            href="/admin/audit"
+            className={buttonVariants({ variant: "outline" })}
+          >
+            Audit trail
+          </Link>
           <Link href="/admin/companies/new" className={buttonVariants()}>
             Onboard company
           </Link>

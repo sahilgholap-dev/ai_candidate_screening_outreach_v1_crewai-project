@@ -27,6 +27,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from ai_candidate_screening_outreach.admin.routes import router as admin_router
+from ai_candidate_screening_outreach.audit import log_action
 from ai_candidate_screening_outreach.auth.deps import require_company_user
 from ai_candidate_screening_outreach.auth.routes import router as auth_router
 from ai_candidate_screening_outreach.auth.security import decode_access_token
@@ -69,6 +70,29 @@ app.include_router(auth_router)
 app.include_router(admin_router)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+ALLOWED_UPLOAD_EXTENSIONS = {".pdf", ".docx", ".txt"}
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB per file
+MAX_RESUMES_PER_CAMPAIGN = 200
+
+
+def _validate_upload(filename: str | None, data: bytes, kind: str) -> str:
+    """Returns a sanitized filename or raises 422."""
+    safe_name = os.path.basename(filename or "")
+    ext = os.path.splitext(safe_name)[1].lower()
+    if ext not in ALLOWED_UPLOAD_EXTENSIONS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"{kind} '{safe_name}': only PDF, DOCX and TXT files are accepted",
+        )
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"{kind} '{safe_name}' exceeds the {MAX_UPLOAD_BYTES // (1024 * 1024)} MB limit",
+        )
+    if not data:
+        raise HTTPException(status_code=422, detail=f"{kind} '{safe_name}' is empty")
+    return safe_name
 
 
 def _campaign_query(db: Session, user: User):
@@ -123,6 +147,12 @@ async def create_campaign(
             detail="Campaigns are created by company users",
         )
 
+    if len(resume_files) > MAX_RESUMES_PER_CAMPAIGN:
+        raise HTTPException(
+            status_code=422,
+            detail=f"At most {MAX_RESUMES_PER_CAMPAIGN} resumes per campaign",
+        )
+
     company = db.query(Company).filter(Company.id == user.company_id).first()
 
     # Validate the requirements profile, if provided
@@ -146,6 +176,16 @@ async def create_campaign(
     if campaign_region not in {"US", "UK", "IN"}:
         raise HTTPException(status_code=422, detail="region must be US, UK or IN")
 
+    # Read + validate every file BEFORE creating any DB rows, so a rejected
+    # upload never leaves an orphaned queued campaign behind.
+    jd_bytes = await jd_file.read()
+    jd_name = _validate_upload(jd_file.filename, jd_bytes, "Job description")
+    validated_resumes: list[tuple[str, bytes]] = []
+    for r_file in resume_files:
+        r_bytes = await r_file.read()
+        safe_name = _validate_upload(r_file.filename, r_bytes, "Resume")
+        validated_resumes.append((safe_name, r_bytes))
+
     new_campaign = Campaign(
         name=campaign_name,
         company_id=user.company_id,
@@ -163,14 +203,11 @@ async def create_campaign(
     upload_dir = os.path.join(BASE_DIR, "uploads", f"campaign_{new_campaign.id}")
     os.makedirs(upload_dir, exist_ok=True)
 
-    jd_bytes = await jd_file.read()
-    jd_path = os.path.join(upload_dir, f"JD_{os.path.basename(jd_file.filename)}")
+    jd_path = os.path.join(upload_dir, f"JD_{jd_name}")
     with open(jd_path, "wb") as f:
         f.write(jd_bytes)
 
-    for r_file in resume_files:
-        r_bytes = await r_file.read()
-        safe_name = os.path.basename(r_file.filename)
+    for safe_name, r_bytes in validated_resumes:
         file_path = os.path.join(upload_dir, safe_name)
         with open(file_path, "wb") as f:
             f.write(r_bytes)
@@ -183,6 +220,19 @@ async def create_campaign(
             )
         )
 
+    log_action(
+        db,
+        "campaign.created",
+        user=user,
+        detail={
+            "campaign_id": new_campaign.id,
+            "name": new_campaign.name,
+            "region": new_campaign.region,
+            "resumes": len(resume_files),
+            "gender_eligibility": (requirements_data or {}).get("gender_eligibility", "any"),
+            "gender_justification": (requirements_data or {}).get("gender_justification"),
+        },
+    )
     db.commit()
 
     enqueue_campaign(db, new_campaign)
@@ -204,6 +254,13 @@ async def delete_campaigns(
     if campaign_ids:
         campaigns = _campaign_query(db, user).filter(Campaign.id.in_(campaign_ids)).all()
         for campaign in campaigns:
+            log_action(
+                db,
+                "campaign.deleted",
+                user=user,
+                company_id=campaign.company_id,
+                detail={"campaign_id": campaign.id, "name": campaign.name},
+            )
             db.delete(campaign)  # candidates removed via cascade
         db.commit()
     return {"success": True}
@@ -258,8 +315,17 @@ async def update_candidate(
     )
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
-    for key, value in body.model_dump(exclude_unset=True).items():
+    changes = body.model_dump(exclude_unset=True)
+    for key, value in changes.items():
         setattr(candidate, key, value)
+    if "outreach_approved" in changes:
+        log_action(
+            db,
+            "outreach.approved" if changes["outreach_approved"] else "outreach.approval_withdrawn",
+            user=user,
+            company_id=campaign.company_id,
+            detail={"campaign_id": campaign.id, "candidate_id": candidate.id, "candidate": candidate.name},
+        )
     db.commit()
     db.refresh(candidate)
     return candidate

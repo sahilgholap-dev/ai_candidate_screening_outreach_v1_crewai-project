@@ -103,11 +103,27 @@ class Campaign(Base):
     created_at = Column(DateTime(timezone=True), default=utcnow)
     started_at = Column(DateTime(timezone=True), nullable=True)
     finished_at = Column(DateTime(timezone=True), nullable=True)
+    purged_at = Column(DateTime(timezone=True), nullable=True)  # retention purge ran
 
     company = relationship("Company", back_populates="campaigns")
     candidates = relationship(
         "Candidate", back_populates="campaign", cascade="all, delete-orphan"
     )
+
+
+class AuditLog(Base):
+    """Who did what, when — compliance trail for sensitive actions
+    (gender-restricted campaigns, outreach approvals, retention purges, ...)."""
+
+    __tablename__ = "audit_log"
+
+    id = Column(Integer, primary_key=True, index=True)
+    created_at = Column(DateTime(timezone=True), default=utcnow, index=True)
+    user_id = Column(Integer, nullable=True)  # null for system actions (purge job)
+    user_email = Column(String, nullable=True)  # denormalized: survives user deletion
+    company_id = Column(Integer, nullable=True, index=True)
+    action = Column(String, nullable=False, index=True)
+    detail = Column(JSON, nullable=True)
 
 
 class Candidate(Base):

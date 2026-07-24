@@ -194,7 +194,17 @@ def run_campaign(campaign_id: int) -> None:
 
         # ---- 4. Chunked screening ----
         weights = (profile or RequirementsProfileV1()).effective_weights()
+        region_rules = {
+            "US": "This is a United States campaign. NEVER extract, record, or consider current or past salary "
+            "(salary-history bans apply in many US jurisdictions) — stated future expectations only. "
+            "Never record graduation years as an age signal.",
+            "UK": "This is a United Kingdom campaign. Never record health or disability information "
+            "(Equality Act s.60 prohibits pre-offer health questions).",
+            "IN": "This is an India campaign. Compensation is typically discussed as annual CTC. "
+            "Never record caste, religion, or marital status even if present on the resume.",
+        }.get(region, "(none)")
         base_inputs = {
+            "region_rules": region_rules,
             "unified_requirements": unified_requirements,
             "threshold": str(campaign.threshold),
             "maybe_band": str(profile.maybe_band if profile else 10),

@@ -17,9 +17,11 @@ import traceback
 
 from ..db.database import SessionLocal
 from ..db.models import Campaign, utcnow
+from .retention import purge_expired_data
 from .runner import run_campaign
 
 POLL_SECONDS = 3
+RETENTION_INTERVAL_SECONDS = 24 * 3600
 _started = threading.Event()
 
 
@@ -58,8 +60,12 @@ def _claim_next() -> int | None:
 
 def _worker_loop() -> None:
     print("[queue] campaign worker started", flush=True)
+    last_retention_run = 0.0
     while True:
         try:
+            if time.monotonic() - last_retention_run > RETENTION_INTERVAL_SECONDS or last_retention_run == 0.0:
+                last_retention_run = time.monotonic()
+                purge_expired_data()
             campaign_id = _claim_next()
             if campaign_id is None:
                 time.sleep(POLL_SECONDS)

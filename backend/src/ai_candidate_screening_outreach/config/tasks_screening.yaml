@@ -44,6 +44,9 @@ parse_candidate_resumes:
     - **Stated notice period / availability, if any**
 
 
+    Region-specific rules:
+    {region_rules}
+
     If a field is absent from the resume, record it as "Not provided". Do not infer
     or guess any information not explicitly present.'
   expected_output: 'A structured markdown document titled "Candidate Profiles" containing
