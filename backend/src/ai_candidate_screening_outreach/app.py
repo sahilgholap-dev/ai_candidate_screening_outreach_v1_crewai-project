@@ -291,6 +291,36 @@ async def view_campaign(
     }
 
 
+@app.post("/api/campaigns/{campaign_id}/retry")
+async def retry_campaign(
+    campaign_id: int,
+    user: User = Depends(require_company_user),
+    db: Session = Depends(get_db),
+):
+    """Re-queue a failed campaign. Resume text and JD are already stored on the
+    rows, so the pipeline re-runs even if the original upload files are gone."""
+    campaign = _campaign_query(db, user).filter(Campaign.id == campaign_id).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    if campaign.status != "Error":
+        raise HTTPException(
+            status_code=409,
+            detail=f"Only failed campaigns can be re-run (status is {campaign.status})",
+        )
+    campaign.status = "Queued"
+    campaign.error_message = None
+    campaign.finished_at = None
+    log_action(
+        db,
+        "campaign.retried",
+        user=user,
+        company_id=campaign.company_id,
+        detail={"campaign_id": campaign.id, "name": campaign.name},
+    )
+    db.commit()
+    return {"success": True, "campaign_id": campaign.id, "status": "Queued"}
+
+
 class CandidateUpdate(BaseModel):
     email_draft: str | None = None
     sms_draft: str | None = None

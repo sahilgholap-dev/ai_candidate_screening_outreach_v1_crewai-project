@@ -151,6 +151,8 @@ def run_campaign(campaign_id: int) -> None:
         )
         profile: RequirementsProfileV1 | None = load_profile(campaign)
         region = campaign.region or (company.default_region if company else "IN")
+        campaign.error_message = None  # fresh attempt clears the last failure
+        db.commit()
 
         # ---- 1. Parse input files ----
         if jd_path and os.path.exists(jd_path):
@@ -244,7 +246,11 @@ def run_campaign(campaign_id: int) -> None:
                     )
                     break
                 except Exception:
-                    traceback.print_exc()
+                    print(
+                        f"[pipeline] campaign {campaign_id} chunk {chunk_no} attempt "
+                        f"{attempt + 1} failed:\n{traceback.format_exc()}",
+                        flush=True,
+                    )
                     if attempt < CHUNK_RETRIES:
                         time.sleep(15)
             if result is None:
@@ -307,11 +313,17 @@ def run_campaign(campaign_id: int) -> None:
             shutil.rmtree(upload_dir, ignore_errors=True)
 
     except Exception as e:
-        traceback.print_exc()
-        print(f"Error running campaign {campaign_id}: {e}")
+        tb = traceback.format_exc()
+        print(f"[pipeline] campaign {campaign_id} FAILED:\n{tb}", flush=True)
         if campaign:
             campaign.status = "Error"
             campaign.finished_at = utcnow()
+            # Short human-readable cause + the failing frame for the UI
+            last_frame = next(
+                (line.strip() for line in reversed(tb.splitlines()[:-1]) if line.strip()),
+                "",
+            )
+            campaign.error_message = f"{type(e).__name__}: {e}\n{last_frame}"[:2000]
             db.commit()
     finally:
         db.close()

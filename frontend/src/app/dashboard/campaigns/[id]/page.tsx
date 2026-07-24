@@ -35,6 +35,7 @@ type CampaignDetail = {
     status: string;
     threshold: number;
     region: string | null;
+    error_message: string | null;
   };
   candidates: CandidateRow[];
   processed_count: number;
@@ -235,6 +236,7 @@ export default function CampaignDetailPage({
   const { id } = use(params);
   const [tab, setTab] = useState<Tab>("all");
   const [openId, setOpenId] = useState<number | null>(null);
+  const queryClient = useQueryClient();
 
   const { data } = useQuery<CampaignDetail>({
     queryKey: ["campaign", id],
@@ -248,6 +250,12 @@ export default function CampaignDetailPage({
   const campaign = data?.campaign;
   const processing =
     campaign?.status === "Processing" || campaign?.status === "Queued";
+
+  const retry = useMutation({
+    mutationFn: () => api(`/campaigns/${id}/retry`, { method: "POST" }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["campaign", id] }),
+  });
 
   const counts = {
     all: data?.candidates.length ?? 0,
@@ -329,6 +337,33 @@ export default function CampaignDetailPage({
                 evaluated
               </span>
             )}
+          </div>
+        )}
+
+        {campaign?.status === "Error" && (
+          <div className="flex flex-col gap-3 rounded-lg border border-verdict-fail/30 bg-verdict-fail-soft p-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <p className="font-medium text-verdict-fail">
+                This run failed before completing.
+              </p>
+              {campaign.error_message && (
+                <pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap break-words text-xs text-verdict-fail/90">
+                  {campaign.error_message}
+                </pre>
+              )}
+              <p className="mt-2 text-xs text-muted-foreground">
+                Uploaded resumes and the job description are kept — running
+                again re-queues the same campaign.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              className="shrink-0"
+              disabled={retry.isPending}
+              onClick={() => retry.mutate()}
+            >
+              {retry.isPending ? "Re-queuing…" : "Run campaign again"}
+            </Button>
           </div>
         )}
 

@@ -99,6 +99,7 @@ class Campaign(Base):
     requirements = Column(JSON, nullable=True)  # RequirementsProfile (Phase 3)
     status = Column(String, default="Pending")  # Pending, Queued, Processing, Completed, Error
     token_usage = Column(JSON, nullable=True)  # aggregated LLM usage for this run
+    error_message = Column(Text, nullable=True)  # last failure, shown in UI on Error
     final_report = Column(Text, nullable=True)  # Kept for legacy or high-level summary
     created_at = Column(DateTime(timezone=True), default=utcnow)
     started_at = Column(DateTime(timezone=True), nullable=True)
