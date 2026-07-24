@@ -7,13 +7,6 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -23,6 +16,47 @@ const loginSchema = z.object({
 });
 
 type LoginValues = z.infer<typeof loginSchema>;
+
+function BrandPanel() {
+  return (
+    <div className="relative flex flex-col justify-between overflow-hidden bg-sidebar p-8 text-sidebar-foreground lg:p-12">
+      <div className="flex items-baseline gap-2">
+        <span className="font-display text-2xl font-bold tracking-tight text-sidebar-primary">
+          NEXUS
+        </span>
+        <span className="text-xs font-medium uppercase tracking-[0.16em] text-sidebar-foreground/60">
+          screening
+        </span>
+      </div>
+
+      <div className="my-10 max-w-sm lg:my-0">
+        <h1 className="font-display text-3xl font-semibold leading-tight lg:text-4xl">
+          Every resume, read.
+          <br />
+          Every score, explained.
+        </h1>
+        <p className="mt-4 text-sm leading-relaxed text-sidebar-foreground/70">
+          Upload a job description and a stack of resumes. NEXUS screens each
+          candidate against your requirements, shows its evidence, and drafts
+          the outreach — you approve every message before it goes anywhere.
+        </p>
+      </div>
+
+      {/* The verdict system, stated honestly */}
+      <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-sidebar-foreground/70">
+        <span className="flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-verdict-pass" /> Shortlist
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-verdict-hold" /> Needs review
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-verdict-fail" /> Not eligible
+        </span>
+      </div>
+    </div>
+  );
+}
 
 function LoginForm() {
   const router = useRouter();
@@ -56,19 +90,22 @@ function LoginForm() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>Sign in</CardTitle>
-          <CardDescription>AI Candidate Screening Platform</CardDescription>
-        </CardHeader>
-        <CardContent>
+    <div className="grid min-h-screen lg:grid-cols-[5fr_7fr]">
+      <BrandPanel />
+      <main className="flex items-center justify-center p-6 sm:p-10">
+        <div className="w-full max-w-sm">
+          <h2 className="font-display text-xl font-semibold">Sign in</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Use the login your administrator created for you.
+          </p>
+
           {justReset && (
-            <p className="mb-4 rounded-md bg-green-50 p-3 text-sm text-green-700">
+            <p className="mt-4 rounded-md border border-verdict-pass/30 bg-verdict-pass-soft p-3 text-sm text-verdict-pass">
               Password updated. Sign in with your new password.
             </p>
           )}
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+
+          <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -102,9 +139,9 @@ function LoginForm() {
               {isSubmitting ? "Signing in…" : "Sign in"}
             </Button>
           </form>
-        </CardContent>
-      </Card>
-    </main>
+        </div>
+      </main>
+    </div>
   );
 }
 

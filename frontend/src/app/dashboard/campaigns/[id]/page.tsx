@@ -1,26 +1,13 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Fragment, use, useState } from "react";
+import { use, useState } from "react";
 
-import { UserHeader } from "@/components/user-header";
+import { ScoreTile, verdictFor } from "@/components/score-tile";
+import { Shell } from "@/components/shell";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
 
@@ -55,6 +42,13 @@ type CampaignDetail = {
 };
 
 type Tab = "all" | "shortlist" | "needs_info" | "flagged" | "rejected";
+
+const RAIL: Record<string, string> = {
+  pass: "border-l-verdict-pass",
+  hold: "border-l-verdict-hold",
+  fail: "border-l-verdict-fail",
+  none: "border-l-border",
+};
 
 function parseList(json: string | null): string[] {
   if (!json) return [];
@@ -102,14 +96,26 @@ function OutreachEditor({
     <div className="space-y-4">
       <div className="space-y-1.5">
         <Label className="text-sm font-medium">Email draft</Label>
-        <Textarea rows={10} value={email} onChange={(e) => setEmail(e.target.value)} />
+        <Textarea
+          rows={10}
+          className="bg-card"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
       </div>
       <div className="space-y-1.5">
         <Label className="text-sm font-medium">SMS draft</Label>
-        <Textarea rows={2} value={sms} onChange={(e) => setSms(e.target.value)} />
-        <p className="text-xs text-muted-foreground">{sms.length}/160 characters</p>
+        <Textarea
+          rows={2}
+          className="bg-card"
+          value={sms}
+          onChange={(e) => setSms(e.target.value)}
+        />
+        <p className="data-value text-xs text-muted-foreground">
+          {sms.length}/160 characters
+        </p>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-2">
         <Button
           size="sm"
           variant="outline"
@@ -136,9 +142,7 @@ function OutreachEditor({
         >
           {candidate.outreach_approved ? "Withdraw approval" : "Approve outreach"}
         </Button>
-        {candidate.outreach_approved && (
-          <Badge variant="default">Approved for sending</Badge>
-        )}
+        {candidate.outreach_approved && <Badge>Approved for sending</Badge>}
       </div>
       <p className="text-xs text-muted-foreground">
         Messages are drafts only — nothing is ever sent automatically. Export
@@ -163,20 +167,22 @@ function CandidateDetail({
     .includes("shortlist");
 
   return (
-    <div className="grid gap-6 bg-muted/30 p-4 lg:grid-cols-2">
+    <div className="grid gap-6 border-t bg-muted/40 p-4 sm:p-5 lg:grid-cols-2">
       <div className="space-y-4">
         {candidate.rationale && (
           <div>
-            <h4 className="mb-1 text-sm font-medium">
+            <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {candidate.hard_filter_failed ? "Hard-filter evidence" : "Rationale"}
             </h4>
-            <p className="text-sm text-muted-foreground">{candidate.rationale}</p>
+            <p className="text-sm leading-relaxed">{candidate.rationale}</p>
           </div>
         )}
         {strengths.length > 0 && (
           <div>
-            <h4 className="mb-1 text-sm font-medium text-green-700">Strengths</h4>
-            <ul className="list-disc pl-5 text-sm text-muted-foreground">
+            <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-verdict-pass">
+              Strengths
+            </h4>
+            <ul className="list-disc space-y-0.5 pl-5 text-sm text-muted-foreground">
               {strengths.map((s, i) => (
                 <li key={i}>{s}</li>
               ))}
@@ -185,8 +191,10 @@ function CandidateDetail({
         )}
         {gaps.length > 0 && (
           <div>
-            <h4 className="mb-1 text-sm font-medium text-red-700">Gaps</h4>
-            <ul className="list-disc pl-5 text-sm text-muted-foreground">
+            <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-verdict-fail">
+              Gaps
+            </h4>
+            <ul className="list-disc space-y-0.5 pl-5 text-sm text-muted-foreground">
               {gaps.map((g, i) => (
                 <li key={i}>{g}</li>
               ))}
@@ -195,10 +203,10 @@ function CandidateDetail({
         )}
         {needsInfo.length > 0 && (
           <div>
-            <h4 className="mb-1 text-sm font-medium text-amber-700">
-              Needs verification before proceeding
+            <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-verdict-hold">
+              Verify before proceeding
             </h4>
-            <ul className="list-disc pl-5 text-sm text-muted-foreground">
+            <ul className="list-disc space-y-0.5 pl-5 text-sm text-muted-foreground">
               {needsInfo.map((n, i) => (
                 <li key={i}>{n}</li>
               ))}
@@ -273,154 +281,146 @@ export default function CampaignDetailPage({
     }
   });
 
-  const TABS: [Tab, string][] = [
-    ["all", `All (${counts.all})`],
-    ["shortlist", `Shortlisted (${counts.shortlist})`],
-    ["needs_info", `Needs info (${counts.needs_info})`],
-    ["flagged", `Flagged (${counts.flagged})`],
-    ["rejected", `Rejected (${counts.rejected})`],
+  const TABS: [Tab, string, number][] = [
+    ["all", "All", counts.all],
+    ["shortlist", "Shortlisted", counts.shortlist],
+    ["needs_info", "Needs info", counts.needs_info],
+    ["flagged", "Flagged", counts.flagged],
+    ["rejected", "Rejected", counts.rejected],
   ];
 
   return (
-    <div className="min-h-screen bg-muted/20">
-      <UserHeader title={campaign?.name ?? "Campaign"} />
-      <main className="mx-auto max-w-6xl space-y-6 p-6">
+    <Shell
+      title={campaign?.name ?? "Campaign"}
+      actions={
+        campaign && (
+          <a
+            href={`/api/backend/campaigns/${campaign.id}/export.csv`}
+            className={buttonVariants({ variant: "outline", size: "sm" })}
+          >
+            Export CSV
+          </a>
+        )
+      }
+    >
+      <div className="space-y-5">
         {campaign && (
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <Badge
-                variant={
-                  campaign.status === "Completed"
-                    ? "default"
-                    : campaign.status === "Error"
-                      ? "destructive"
-                      : "secondary"
-                }
-              >
-                {campaign.status}
-              </Badge>
-              <span className="text-sm text-muted-foreground">
-                Threshold {campaign.threshold} · Region {campaign.region ?? "—"}
-              </span>
-              {processing && data && (
-                <span className="text-sm text-muted-foreground">
-                  {data.processed_count}/{data.total_count} evaluated…
-                </span>
-              )}
-            </div>
-            <a
-              href={`/api/backend/campaigns/${campaign.id}/export.csv`}
-              className={buttonVariants({ variant: "outline", size: "sm" })}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+            <Badge
+              variant={
+                campaign.status === "Completed"
+                  ? "default"
+                  : campaign.status === "Error"
+                    ? "destructive"
+                    : "secondary"
+              }
             >
-              Export CSV
-            </a>
+              {campaign.status}
+            </Badge>
+            <span className="data-value text-muted-foreground">
+              cut-off {campaign.threshold} · {campaign.region ?? "—"}
+            </span>
+            {processing && data && (
+              <span className="flex items-center gap-2 text-muted-foreground">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-verdict-hold" />
+                <span className="data-value">
+                  {data.processed_count}/{data.total_count}
+                </span>
+                evaluated
+              </span>
+            )}
           </div>
         )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Candidates</CardTitle>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {TABS.map(([key, label]) => (
-                <Button
-                  key={key}
-                  size="sm"
-                  variant={tab === key ? "default" : "outline"}
-                  onClick={() => setTab(key)}
+        {/* Verdict filter */}
+        <div className="flex gap-1.5 overflow-x-auto pb-1">
+          {TABS.map(([key, label, count]) => (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                tab === key
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground"
+              }`}
+            >
+              {label}
+              <span className="data-value text-xs opacity-70">{count}</span>
+            </button>
+          ))}
+        </div>
+
+        {!data && <p className="text-muted-foreground">Loading…</p>}
+        {data && visible.length === 0 && (
+          <div className="rounded-lg border border-dashed bg-card p-8 text-center text-sm text-muted-foreground">
+            No candidates in this view.
+          </div>
+        )}
+
+        <ul className="space-y-2">
+          {visible.map((c) => {
+            const verdict = verdictFor(c.recommendation, c.hard_filter_failed);
+            const needsInfo = parseList(c.needs_info);
+            const flags = parseList(c.flags);
+            const open = openId === c.id;
+            return (
+              <li
+                key={c.id}
+                className={`overflow-hidden rounded-lg border border-l-3 bg-card ${RAIL[verdict]}`}
+              >
+                <button
+                  className="flex w-full items-center gap-3 p-3 text-left sm:gap-4 sm:p-4"
+                  aria-expanded={open}
+                  onClick={() => setOpenId(open ? null : c.id)}
                 >
-                  {label}
-                </Button>
-              ))}
-            </div>
-          </CardHeader>
-          <CardContent>
-            {!data && <p className="text-muted-foreground">Loading…</p>}
-            {data && visible.length === 0 && (
-              <p className="text-muted-foreground">No candidates in this view.</p>
-            )}
-            {data && visible.length > 0 && (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Candidate</TableHead>
-                    <TableHead className="text-right">Score</TableHead>
-                    <TableHead>Recommendation</TableHead>
-                    <TableHead>Review markers</TableHead>
-                    <TableHead className="text-right">Outreach</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {visible.map((c) => {
-                    const needsInfo = parseList(c.needs_info);
-                    const flags = parseList(c.flags);
-                    const open = openId === c.id;
-                    return (
-                      <Fragment key={c.id}>
-                        <TableRow
-                          className="cursor-pointer"
-                          onClick={() => setOpenId(open ? null : c.id)}
-                        >
-                          <TableCell>
-                            <span className="font-medium">
-                              {c.name ?? c.original_filename}
-                            </span>
-                            <span className="ml-2 text-xs text-muted-foreground">
-                              {open ? "▾" : "▸"}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right font-mono">
-                            {c.score ?? "…"}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={recVariant(c.recommendation)}>
-                              {c.recommendation ?? "Pending"}
-                            </Badge>
-                            {c.hard_filter_failed && (
-                              <Badge variant="destructive" className="ml-1">
-                                Hard filter
-                              </Badge>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {needsInfo.length > 0 && (
-                              <Badge variant="outline" className="mr-1">
-                                Needs info ({needsInfo.length})
-                              </Badge>
-                            )}
-                            {flags.map((f) => (
-                              <Badge key={f} variant="secondary" className="mr-1">
-                                {f.replaceAll("_", " ")}
-                              </Badge>
-                            ))}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {c.email_draft &&
-                              (c.outreach_approved ? (
-                                <Badge>Approved</Badge>
-                              ) : (
-                                <Badge variant="outline">Draft ready</Badge>
-                              ))}
-                          </TableCell>
-                        </TableRow>
-                        {open && (
-                          <TableRow>
-                            <TableCell colSpan={5} className="p-0">
-                              <CandidateDetail
-                                campaignId={campaign!.id}
-                                candidate={c}
-                              />
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </Fragment>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-      </main>
-    </div>
+                  <ScoreTile
+                    score={c.score}
+                    verdict={verdict}
+                    threshold={campaign?.threshold}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">
+                      {c.name ?? c.original_filename}
+                    </p>
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                      <Badge variant={recVariant(c.recommendation)}>
+                        {c.recommendation ?? "Pending"}
+                      </Badge>
+                      {c.hard_filter_failed && (
+                        <Badge variant="destructive">Hard filter</Badge>
+                      )}
+                      {needsInfo.length > 0 && (
+                        <Badge variant="outline">
+                          Needs info ({needsInfo.length})
+                        </Badge>
+                      )}
+                      {flags.map((f) => (
+                        <Badge key={f} variant="secondary">
+                          {f.replaceAll("_", " ")}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="hidden shrink-0 items-center gap-2 sm:flex">
+                    {c.email_draft &&
+                      (c.outreach_approved ? (
+                        <Badge>Approved</Badge>
+                      ) : (
+                        <Badge variant="outline">Draft ready</Badge>
+                      ))}
+                    <span aria-hidden className="text-muted-foreground">
+                      {open ? "▾" : "▸"}
+                    </span>
+                  </div>
+                </button>
+                {open && campaign && (
+                  <CandidateDetail campaignId={campaign.id} candidate={c} />
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </Shell>
   );
 }

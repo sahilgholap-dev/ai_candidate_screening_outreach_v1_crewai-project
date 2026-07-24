@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { RequirementsForm } from "@/components/requirements-form";
-import { UserHeader } from "@/components/user-header";
+import { Shell } from "@/components/shell";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -100,9 +100,8 @@ export default function NewCampaignPage() {
   }
 
   return (
-    <div className="min-h-screen bg-muted/20">
-      <UserHeader title="New campaign" />
-      <main className="mx-auto max-w-3xl space-y-6 p-6">
+    <Shell title="New campaign">
+      <div className="mx-auto max-w-3xl space-y-6">
         <Card>
           <CardHeader>
             <CardTitle>Campaign basics</CardTitle>
@@ -197,7 +196,7 @@ export default function NewCampaignPage() {
 
         {error && <p className="text-sm text-destructive">{error}</p>}
 
-        <div className="flex justify-end gap-3 pb-10">
+        <div className="flex flex-wrap justify-end gap-3 pb-10">
           <Button variant="outline" onClick={() => router.push("/dashboard")}>
             Cancel
           </Button>
@@ -205,7 +204,7 @@ export default function NewCampaignPage() {
             {submitting ? "Uploading…" : "Create & run campaign"}
           </Button>
         </div>
-      </main>
-    </div>
+      </div>
+    </Shell>
   );
 }

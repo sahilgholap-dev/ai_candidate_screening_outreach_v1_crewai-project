@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 
-import { UserHeader } from "@/components/user-header";
+import { Shell } from "@/components/shell";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { api } from "@/lib/api";
@@ -17,11 +17,12 @@ type Campaign = {
   created_at: string | null;
 };
 
-function statusVariant(status: string) {
-  if (status === "Completed") return "default" as const;
-  if (status === "Error") return "destructive" as const;
-  return "secondary" as const;
-}
+const STATUS_STYLE: Record<string, string> = {
+  Completed: "bg-verdict-pass-soft text-verdict-pass border-verdict-pass/25",
+  Error: "bg-verdict-fail-soft text-verdict-fail border-verdict-fail/25",
+  Processing: "bg-verdict-hold-soft text-verdict-hold border-verdict-hold/25",
+  Queued: "bg-muted text-muted-foreground border-border",
+};
 
 export default function DashboardHome() {
   const { data: campaigns, isLoading } = useQuery<Campaign[]>({
@@ -30,40 +31,72 @@ export default function DashboardHome() {
   });
 
   return (
-    <div className="min-h-screen bg-muted/20">
-      <UserHeader title="Campaigns" />
-      <main className="p-6">
-        <div className="mb-4 flex justify-end">
-          <Link href="/dashboard/campaigns/new" className={buttonVariants()}>
-            New campaign
+    <Shell
+      title="Campaigns"
+      actions={
+        <Link href="/dashboard/campaigns/new" className={buttonVariants()}>
+          New campaign
+        </Link>
+      }
+    >
+      {isLoading && <p className="text-muted-foreground">Loading…</p>}
+
+      {campaigns && campaigns.length === 0 && (
+        <div className="rounded-lg border border-dashed bg-card p-10 text-center">
+          <h2 className="font-display text-lg font-semibold">
+            No campaigns yet
+          </h2>
+          <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
+            Upload a job description and resumes to run your first screening.
+          </p>
+          <Link
+            href="/dashboard/campaigns/new"
+            className={`${buttonVariants()} mt-5`}
+          >
+            Create your first campaign
           </Link>
         </div>
+      )}
 
-        {isLoading && <p className="text-muted-foreground">Loading…</p>}
-        {campaigns && campaigns.length === 0 && (
-          <p className="text-muted-foreground">
-            No campaigns yet. Create your first one.
-          </p>
-        )}
-        {campaigns && campaigns.length > 0 && (
-          <ul className="space-y-2">
-            {campaigns.map((c) => (
-              <li key={c.id}>
-                <Link
-                  href={`/dashboard/campaigns/${c.id}`}
-                  className="flex items-center justify-between rounded-lg border bg-background px-4 py-3 hover:bg-muted/50"
-                >
-                  <span className="font-medium">{c.name}</span>
-                  <span className="flex items-center gap-3 text-sm text-muted-foreground">
-                    {c.region && <span>{c.region}</span>}
-                    <Badge variant={statusVariant(c.status)}>{c.status}</Badge>
+      {campaigns && campaigns.length > 0 && (
+        <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {campaigns.map((c) => (
+            <li key={c.id}>
+              <Link
+                href={`/dashboard/campaigns/${c.id}`}
+                className="flex h-full flex-col justify-between gap-4 rounded-lg border bg-card p-4 transition-colors hover:border-primary/40"
+              >
+                <div>
+                  <p className="font-display font-semibold leading-snug">
+                    {c.name}
+                  </p>
+                  {c.created_at && (
+                    <p className="data-value mt-1 text-xs text-muted-foreground">
+                      {new Date(c.created_at).toLocaleDateString(undefined, {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span
+                    className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium ${
+                      STATUS_STYLE[c.status] ?? STATUS_STYLE.Queued
+                    }`}
+                  >
+                    {c.status}
                   </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </main>
-    </div>
+                  <span className="data-value text-xs text-muted-foreground">
+                    {c.region ?? "—"} · cut-off {c.threshold}
+                  </span>
+                </div>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Shell>
   );
 }

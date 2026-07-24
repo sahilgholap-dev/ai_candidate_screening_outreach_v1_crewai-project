@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { use, useState } from "react";
 
 import { CompanyForm, CompanyPayload } from "@/components/company-form";
-import { UserHeader } from "@/components/user-header";
+import { Shell } from "@/components/shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -170,6 +170,7 @@ function UsersPanel({ companyId }: { companyId: number }) {
           <p className="text-sm text-muted-foreground">No users yet.</p>
         )}
         {users && users.length > 0 && (
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -214,6 +215,7 @@ function UsersPanel({ companyId }: { companyId: number }) {
               ))}
             </TableBody>
           </Table>
+          </div>
         )}
       </CardContent>
     </Card>
@@ -256,9 +258,8 @@ export default function CompanyDetailPage({
   }
 
   return (
-    <div className="min-h-screen bg-muted/20">
-      <UserHeader title={company?.name ?? "Company"} />
-      <main className="mx-auto max-w-3xl space-y-6 p-6">
+    <Shell title={company?.name ?? "Company"}>
+      <div className="mx-auto max-w-3xl space-y-6">
         {company && (
           <>
             <div className="flex items-center justify-between">
@@ -298,7 +299,7 @@ export default function CompanyDetailPage({
             </Card>
           </>
         )}
-      </main>
-    </div>
+      </div>
+    </Shell>
   );
 }

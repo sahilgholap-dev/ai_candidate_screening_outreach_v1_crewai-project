@@ -61,10 +61,18 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
+    <main className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle>Set a new password</CardTitle>
+          <div className="mb-2 flex items-baseline gap-1.5">
+            <span className="font-display text-lg font-bold tracking-tight text-primary">
+              NEXUS
+            </span>
+            <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+              screening
+            </span>
+          </div>
+          <CardTitle className="font-display">Set a new password</CardTitle>
           <CardDescription>
             You must change your password before continuing.
           </CardDescription>

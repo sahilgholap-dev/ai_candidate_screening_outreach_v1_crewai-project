@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 
 import { CompanyForm, CompanyPayload } from "@/components/company-form";
-import { UserHeader } from "@/components/user-header";
+import { Shell } from "@/components/shell";
 import {
   Card,
   CardContent,
@@ -28,9 +28,8 @@ export default function NewCompanyPage() {
   }
 
   return (
-    <div className="min-h-screen bg-muted/20">
-      <UserHeader title="Onboard company" />
-      <main className="mx-auto max-w-3xl p-6">
+    <Shell title="Onboard company">
+      <div className="mx-auto max-w-3xl">
         <Card>
           <CardHeader>
             <CardTitle>Company profile</CardTitle>
@@ -43,7 +42,7 @@ export default function NewCompanyPage() {
             <CompanyForm onSubmit={onSubmit} submitLabel="Create company" />
           </CardContent>
         </Card>
-      </main>
-    </div>
+      </div>
+    </Shell>
   );
 }

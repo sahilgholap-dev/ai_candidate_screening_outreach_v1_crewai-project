@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 
-import { UserHeader } from "@/components/user-header";
+import { Shell } from "@/components/shell";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -46,15 +46,14 @@ export default function AuditPage() {
   });
 
   return (
-    <div className="min-h-screen bg-muted/20">
-      <UserHeader title="Audit trail" />
-      <main className="mx-auto max-w-5xl p-6">
+    <Shell title="Audit trail">
+      <div>
         {isLoading && <p className="text-muted-foreground">Loading…</p>}
         {entries && entries.length === 0 && (
           <p className="text-muted-foreground">No audit entries yet.</p>
         )}
         {entries && entries.length > 0 && (
-          <div className="rounded-lg border bg-background">
+          <div className="overflow-x-auto rounded-lg border bg-card">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -87,7 +86,7 @@ export default function AuditPage() {
             </Table>
           </div>
         )}
-      </main>
-    </div>
+      </div>
+    </Shell>
   );
 }
