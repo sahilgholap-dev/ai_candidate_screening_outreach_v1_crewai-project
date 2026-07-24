@@ -72,6 +72,8 @@ class CompanyOut(CompanyBase):
     created_at: datetime | None
     user_count: int = 0
     campaign_count: int = 0
+    total_tokens: int = 0
+    llm_requests: int = 0
 
     class Config:
         from_attributes = True
@@ -132,6 +134,15 @@ def _company_out(db: Session, company: Company) -> CompanyOut:
         .scalar()
         or 0
     )
+    usages = (
+        db.query(Campaign.token_usage)
+        .filter(Campaign.company_id == company.id, Campaign.token_usage.isnot(None))
+        .all()
+    )
+    for (usage,) in usages:
+        if isinstance(usage, dict):
+            out.total_tokens += int(usage.get("total_tokens", 0) or 0)
+            out.llm_requests += int(usage.get("successful_requests", 0) or 0)
     return out
 
 

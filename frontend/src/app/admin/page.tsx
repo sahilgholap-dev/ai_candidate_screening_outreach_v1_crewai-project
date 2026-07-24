@@ -49,6 +49,7 @@ export default function AdminHome() {
                   <TableHead>Region</TableHead>
                   <TableHead className="text-right">Users</TableHead>
                   <TableHead className="text-right">Campaigns</TableHead>
+                  <TableHead className="text-right">LLM tokens</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -66,6 +67,9 @@ export default function AdminHome() {
                     <TableCell>{REGION_LABELS[c.default_region]}</TableCell>
                     <TableCell className="text-right">{c.user_count}</TableCell>
                     <TableCell className="text-right">{c.campaign_count}</TableCell>
+                    <TableCell className="text-right font-mono">
+                      {c.total_tokens.toLocaleString()}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={c.is_active ? "default" : "destructive"}>
                         {c.is_active ? "Active" : "Deactivated"}

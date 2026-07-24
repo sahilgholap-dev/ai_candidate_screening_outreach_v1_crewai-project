@@ -45,6 +45,8 @@ export type Company = {
   created_at: string | null;
   user_count: number;
   campaign_count: number;
+  total_tokens: number;
+  llm_requests: number;
 };
 
 export type CompanyUser = {

@@ -56,6 +56,6 @@ TanStack Query, react-hook-form + zod.
 | 1 | Tenancy & auth: companies/users tables, JWT, login flow (done) |
 | 2 | Admin onboarding: company + user management (API + UI) (done) |
 | 3 | Requirements Profile: structured campaign creation form (done) |
-| 4 | Pipeline rework: dynamic hard filters/weights, job queue, per-run isolation |
-| 5 | Results & outreach review UI |
+| 4 | Pipeline rework: dynamic hard filters/weights, job queue, per-run isolation (done) |
+| 5 | Results & outreach review UI (done) |
 | 6 | Hardening & compliance: retention, audit log, region rules |

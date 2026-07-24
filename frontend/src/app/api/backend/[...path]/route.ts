@@ -45,8 +45,10 @@ async function proxy(
   }
 
   const responseHeaders = new Headers();
-  const resContentType = res.headers.get("content-type");
-  if (resContentType) responseHeaders.set("content-type", resContentType);
+  for (const name of ["content-type", "content-disposition"]) {
+    const value = res.headers.get(name);
+    if (value) responseHeaders.set(name, value);
+  }
 
   return new NextResponse(res.body, {
     status: res.status,

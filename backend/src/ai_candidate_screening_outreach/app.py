@@ -1,6 +1,11 @@
+import csv
+import io
+import json
 import os
 from typing import List
 from fastapi import WebSocket, WebSocketDisconnect, Query
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 import asyncio
 import threading
 from queue import Queue, Empty
@@ -227,6 +232,95 @@ async def view_campaign(
         "processed_count": processed_count,
         "total_count": total_count,
     }
+
+
+class CandidateUpdate(BaseModel):
+    email_draft: str | None = None
+    sms_draft: str | None = None
+    outreach_approved: bool | None = None
+
+
+@app.patch("/api/campaigns/{campaign_id}/candidates/{candidate_id}")
+async def update_candidate(
+    campaign_id: int,
+    candidate_id: int,
+    body: CandidateUpdate,
+    user: User = Depends(require_company_user),
+    db: Session = Depends(get_db),
+):
+    campaign = _campaign_query(db, user).filter(Campaign.id == campaign_id).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    candidate = (
+        db.query(Candidate)
+        .filter(Candidate.id == candidate_id, Candidate.campaign_id == campaign.id)
+        .first()
+    )
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    for key, value in body.model_dump(exclude_unset=True).items():
+        setattr(candidate, key, value)
+    db.commit()
+    db.refresh(candidate)
+    return candidate
+
+
+def _json_list(value: str | None) -> str:
+    if not value:
+        return ""
+    try:
+        items = json.loads(value)
+        return "; ".join(items) if isinstance(items, list) else str(items)
+    except (ValueError, TypeError):
+        return value
+
+
+@app.get("/api/campaigns/{campaign_id}/export.csv")
+async def export_campaign_csv(
+    campaign_id: int,
+    user: User = Depends(require_company_user),
+    db: Session = Depends(get_db),
+):
+    campaign = _campaign_query(db, user).filter(Campaign.id == campaign_id).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    candidates = (
+        db.query(Candidate)
+        .filter(Candidate.campaign_id == campaign.id)
+        .order_by(Candidate.score.desc().nullslast())
+        .all()
+    )
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(
+        [
+            "Rank", "Name", "File", "Score", "Recommendation", "Hard Filter Failed",
+            "Needs Info", "Flags", "Key Strengths", "Key Gaps", "Rationale",
+            "Email Draft", "SMS Draft", "Outreach Approved",
+        ]
+    )
+    for rank, c in enumerate(candidates, start=1):
+        writer.writerow(
+            [
+                rank, c.name or "", c.original_filename or "",
+                c.score if c.score is not None else "",
+                c.recommendation or "", "Y" if c.hard_filter_failed else "N",
+                _json_list(c.needs_info), _json_list(c.flags),
+                _json_list(c.key_strengths), _json_list(c.key_gaps),
+                c.rationale or "", c.email_draft or "", c.sms_draft or "",
+                "Y" if c.outreach_approved else "N",
+            ]
+        )
+    buf.seek(0)
+    safe_name = "".join(ch if ch.isalnum() or ch in "-_ " else "_" for ch in campaign.name or "campaign")
+    return StreamingResponse(
+        iter([buf.getvalue()]),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{safe_name}_candidates.csv"'
+        },
+    )
 
 
 @app.websocket("/ws/scraper")

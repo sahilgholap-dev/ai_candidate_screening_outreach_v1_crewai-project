@@ -132,6 +132,7 @@ class Candidate(Base):
     flags = Column(Text, nullable=True)  # JSON list: over_budget, overqualified, ...
     email_draft = Column(Text, nullable=True)
     sms_draft = Column(Text, nullable=True)
+    outreach_approved = Column(Boolean, default=False, nullable=False)
 
     campaign = relationship("Campaign", back_populates="candidates")
 
