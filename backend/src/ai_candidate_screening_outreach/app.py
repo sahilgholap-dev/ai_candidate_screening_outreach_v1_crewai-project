@@ -5,9 +5,10 @@ import asyncio
 import threading
 from queue import Queue, Empty
 
+from contextlib import asynccontextmanager
+
 import jwt
 from fastapi import (
-    BackgroundTasks,
     Depends,
     FastAPI,
     File,
@@ -27,13 +28,27 @@ from ai_candidate_screening_outreach.auth.security import decode_access_token
 from ai_candidate_screening_outreach.db.database import engine, Base, get_db, SessionLocal
 from ai_candidate_screening_outreach.db.models import Campaign, Candidate, Company, User
 from ai_candidate_screening_outreach.schemas.requirements import RequirementsProfileV1
-from ai_candidate_screening_outreach.main import run_campaign_task
+from ai_candidate_screening_outreach.pipeline.queue_worker import (
+    enqueue_campaign,
+    requeue_stuck_campaigns,
+    start_worker,
+)
 from ai_candidate_screening_outreach.utils.indeed_scraper import IndeedDownloader
 
 # Create tables missing on fresh DBs; schema evolution is Alembic's job
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="AI Candidate Screening API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    requeued = requeue_stuck_campaigns()
+    if requeued:
+        print(f"[queue] re-queued {requeued} campaign(s) stuck in Processing")
+    start_worker()
+    yield
+
+
+app = FastAPI(title="AI Candidate Screening API", lifespan=lifespan)
 
 FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
 
@@ -88,7 +103,6 @@ async def list_campaigns(
 
 @app.post("/api/campaigns")
 async def create_campaign(
-    background_tasks: BackgroundTasks,
     campaign_name: str = Form(...),
     threshold: float = Form(65.0),
     region: str | None = Form(None),
@@ -135,7 +149,7 @@ async def create_campaign(
         threshold=threshold,
         requirements=requirements_data,
         jd_text="",  # parsed in background
-        status="Processing",
+        status="Queued",
     )
     db.add(new_campaign)
     db.commit()
@@ -166,7 +180,7 @@ async def create_campaign(
 
     db.commit()
 
-    background_tasks.add_task(run_campaign_task, new_campaign.id, upload_dir, jd_path)
+    enqueue_campaign(db, new_campaign)
 
     return {"success": True, "campaign_id": new_campaign.id}
 

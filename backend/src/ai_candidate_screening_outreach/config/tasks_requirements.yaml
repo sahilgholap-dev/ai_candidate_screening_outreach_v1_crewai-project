@@ -1,0 +1,49 @@
+extract_job_requirements:
+  description: 'Analyze the job description below together with the recruiter''s structured
+    requirements, and produce a single Unified Requirements Profile.
+
+
+    Job Description:
+
+    {job_description}
+
+
+    Recruiter''s structured requirements (captured on a form — these OVERRIDE the
+    job description wherever the two conflict; the JD fills any gaps the form leaves
+    open):
+
+    {recruiter_requirements}
+
+
+    Extract and organize the following fields:
+
+    - **Required Skills**: Non-negotiable technical and soft skills.
+
+    - **Preferred / Nice-to-Have Skills**: Skills mentioned as a bonus or "plus".
+
+    - **Minimum Years of Experience**: The lowest acceptable experience level.
+
+    - **Location**: Office city/region or "Remote", plus commute/relocation rules.
+
+    - **Work Mode**: On-site / Hybrid / Remote.
+
+    - **Work Authorization**: Any visa / right-to-work / employment-type requirements.
+
+    - **Education Requirements**: Degree level and field if specified.
+
+    - **Must-Haves**: Hard requirements beyond skills (certifications, licenses, availability,
+    shift, notice period, legal work authorization).
+
+    - **Nice-to-Haves**: Additional desirable qualities that are not blockers.
+
+    - **Compensation Budget**: If provided (flag-only — candidates are never rejected
+    on compensation).
+
+
+    If any field is not mentioned in either source, mark it as "Not specified".'
+  expected_output: A structured markdown document titled "Unified Requirements Profile"
+    with clearly labeled sections for each extracted field. Every item should be a
+    bullet point, and items originating from the recruiter form should be marked "(recruiter)".
+    Include a brief "Summary" paragraph at the top (2-3 sentences) describing the
+    role in plain language.
+  agent: senior_technical_recruiter

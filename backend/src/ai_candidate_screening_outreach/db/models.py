@@ -32,6 +32,14 @@ class CandidateEvaluation(BaseModel):
     key_strengths: List[str] = Field(description="List of key strengths from the resume")
     key_gaps: List[str] = Field(description="List of key gaps or missing requirements")
     rationale: str = Field(description="A concise rationale for the scoring and recommendation")
+    needs_info: List[str] = Field(
+        default_factory=list,
+        description="Hard filters that could not be verified from the resume (candidate needs human review)",
+    )
+    flags: List[str] = Field(
+        default_factory=list,
+        description="Non-rejecting review flags, e.g. 'over_budget', 'overqualified', 'employment_gap'",
+    )
     email_draft: Optional[str] = Field(None, description="The drafted outreach email if shortlisted")
     sms_draft: Optional[str] = Field(None, description="The drafted outreach SMS if shortlisted")
 
@@ -120,6 +128,8 @@ class Candidate(Base):
     key_strengths = Column(Text, nullable=True)  # Stored as JSON string
     key_gaps = Column(Text, nullable=True)  # Stored as JSON string
     rationale = Column(Text, nullable=True)
+    needs_info = Column(Text, nullable=True)  # JSON list: unverifiable hard filters
+    flags = Column(Text, nullable=True)  # JSON list: over_budget, overqualified, ...
     email_draft = Column(Text, nullable=True)
     sms_draft = Column(Text, nullable=True)
 

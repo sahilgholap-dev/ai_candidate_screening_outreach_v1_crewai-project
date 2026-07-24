@@ -30,6 +30,8 @@ type CandidateRow = {
   hard_filter_failed: boolean;
   key_strengths: string | null; // JSON string
   key_gaps: string | null; // JSON string
+  needs_info: string | null; // JSON string
+  flags: string | null; // JSON string
   rationale: string | null;
 };
 
@@ -73,12 +75,15 @@ export default function CampaignDetailPage({
   const { data } = useQuery<CampaignDetail>({
     queryKey: ["campaign", id],
     queryFn: () => api(`/campaigns/${id}`),
-    refetchInterval: (query) =>
-      query.state.data?.campaign.status === "Processing" ? 5000 : false,
+    refetchInterval: (query) => {
+      const s = query.state.data?.campaign.status;
+      return s === "Processing" || s === "Queued" ? 5000 : false;
+    },
   });
 
   const campaign = data?.campaign;
-  const processing = campaign?.status === "Processing";
+  const processing =
+    campaign?.status === "Processing" || campaign?.status === "Queued";
 
   return (
     <div className="min-h-screen bg-muted/20">
@@ -132,6 +137,8 @@ export default function CampaignDetailPage({
                   {data.candidates.map((c, i) => {
                     const strengths = parseList(c.key_strengths);
                     const gaps = parseList(c.key_gaps);
+                    const needsInfo = parseList(c.needs_info);
+                    const flags = parseList(c.flags);
                     return (
                       <TableRow key={c.id}>
                         <TableCell className="text-muted-foreground">{i + 1}</TableCell>
@@ -157,6 +164,16 @@ export default function CampaignDetailPage({
                               Hard filter
                             </Badge>
                           )}
+                          {needsInfo.length > 0 && (
+                            <Badge variant="outline" className="ml-1">
+                              Needs info: {needsInfo.join(", ")}
+                            </Badge>
+                          )}
+                          {flags.map((f) => (
+                            <Badge key={f} variant="secondary" className="ml-1">
+                              {f.replaceAll("_", " ")}
+                            </Badge>
+                          ))}
                         </TableCell>
                         <TableCell className="max-w-sm">
                           {strengths.length > 0 && (
