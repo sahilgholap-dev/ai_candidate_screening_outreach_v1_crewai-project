@@ -125,7 +125,11 @@ export function CompanyForm({
             control={control}
             name="default_region"
             render={({ field }) => (
-              <Select value={field.value} onValueChange={field.onChange}>
+              <Select
+                items={{ IN: "India", US: "United States", UK: "United Kingdom" }}
+                value={field.value}
+                onValueChange={field.onChange}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

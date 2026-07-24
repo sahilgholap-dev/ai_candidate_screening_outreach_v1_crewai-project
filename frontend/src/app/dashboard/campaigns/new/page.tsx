@@ -122,7 +122,11 @@ export default function NewCampaignPage() {
               </div>
               <div className="space-y-2">
                 <Label>Region</Label>
-                <Select value={region} onValueChange={(v) => setRegion(v as Region)}>
+                <Select
+                  items={{ IN: "India", US: "United States", UK: "United Kingdom" }}
+                  value={region}
+                  onValueChange={(v) => setRegion(v as Region)}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>

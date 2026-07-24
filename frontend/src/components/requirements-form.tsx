@@ -31,7 +31,11 @@ function ModeSelect({
   onChange: (m: Mode) => void;
 }) {
   return (
-    <Select value={value} onValueChange={(v) => onChange(v as Mode)}>
+    <Select
+      items={MODE_LABEL}
+      value={value}
+      onValueChange={(v) => onChange(v as Mode)}
+    >
       <SelectTrigger className="h-8 w-56 text-xs">
         <SelectValue />
       </SelectTrigger>
@@ -158,8 +162,13 @@ function EnumSelect<T extends string>({
   placeholder?: string;
 }) {
   const NONE = "__none__";
+  const items: Record<string, string> = {
+    [NONE]: placeholder,
+    ...Object.fromEntries(options),
+  };
   return (
     <Select
+      items={items}
       value={value ?? NONE}
       onValueChange={(v) => onChange(v === NONE ? null : (v as T))}
     >
