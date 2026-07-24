@@ -46,6 +46,10 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password"
         )
+    if user.company and not user.company.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Company account is deactivated"
+        )
     return LoginResponse(
         access_token=create_access_token(user.id),
         must_reset_password=user.must_reset_password,

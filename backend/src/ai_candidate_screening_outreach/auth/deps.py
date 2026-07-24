@@ -46,4 +46,8 @@ def require_company_user(user: User = Depends(get_current_user)) -> User:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="User is not linked to a company"
         )
+    if user.company and not user.company.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Company account is deactivated"
+        )
     return user

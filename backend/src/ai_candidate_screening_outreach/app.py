@@ -20,6 +20,7 @@ from fastapi import (
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
+from ai_candidate_screening_outreach.admin.routes import router as admin_router
 from ai_candidate_screening_outreach.auth.deps import require_company_user
 from ai_candidate_screening_outreach.auth.routes import router as auth_router
 from ai_candidate_screening_outreach.auth.security import decode_access_token
@@ -44,6 +45,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+app.include_router(admin_router)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 

@@ -5,6 +5,9 @@ from datetime import datetime, timedelta, timezone
 
 import bcrypt
 import jwt
+from dotenv import load_dotenv
+
+load_dotenv()  # .env in the working directory (backend/)
 
 JWT_SECRET = os.getenv("JWT_SECRET", "")
 if not JWT_SECRET:
