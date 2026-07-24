@@ -26,10 +26,13 @@ parse_candidate_resumes:
   description: |-
     Parse all candidate resumes provided below. Multiple resumes are separated by a line containing only "---". For each resume, extract a structured candidate profile.
 
+    Each resume block begins with a line "Candidate ID: <number>". This is a system identifier — you MUST preserve it EXACTLY as given in your output. NEVER renumber candidates sequentially (1, 2, 3...); always use the provided Candidate ID.
+
     Resumes:
     {resumes}
 
     For each candidate, extract:
+    - **Candidate ID** (the exact number from the "Candidate ID:" line)
     - **Full Name**
     - **Email**
     - **Phone**
@@ -41,9 +44,11 @@ parse_candidate_resumes:
 
     If a field is absent from the resume, record it as "Not provided". Do not infer or guess any information not explicitly present.
   expected_output: 'A structured markdown document titled "Candidate Profiles" containing
-    one clearly labeled section per candidate (e.g., "## Candidate 1: [Full Name]").
-    Each section lists all extracted fields as labeled bullet points. End with a brief
-    "## Summary" stating the total number of candidates parsed.'
+    one clearly labeled section per candidate, headed by the PROVIDED Candidate ID
+    (e.g., "## Candidate 68: [Full Name]" — never a sequential number you invented).
+    Each section lists all extracted fields as labeled bullet points, starting with
+    "- **Candidate ID:** <number>". End with a brief "## Summary" stating the total
+    number of candidates parsed.'
   agent: resume_data_extraction_specialist
 evaluate_and_score_candidates:
   description: |-
@@ -175,7 +180,7 @@ draft_candidate_outreach_messages:
   description: |-
     Compile the evaluation results from the previous step and draft personalized outreach messages for every candidate whose recommendation is "Shortlist".
     
-    1. For ALL candidates, extract their evaluation details (score, recommendation, hard_filter_failed, key_strengths, key_gaps, rationale) from the context.
+    1. For ALL candidates, extract their evaluation details (score, recommendation, hard_filter_failed, key_strengths, key_gaps, rationale) from the context. The candidate_id field MUST be the numeric Candidate ID shown in the Candidate Profiles (e.g. "Candidate 68" -> candidate_id 68) — never a sequential position number.
     2. For ONLY the shortlisted candidates, draft outreach messages:
        - **Email**: A short, warm, personalized email (150-200 words) with a specific subject line. Reference their specific background. Do NOT use bracketed placeholders.
        - **SMS**: A brief SMS version (under 160 chars) introducing the opportunity.

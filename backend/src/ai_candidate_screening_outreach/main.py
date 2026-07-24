@@ -88,25 +88,40 @@ def run_campaign_task(campaign_id: int, upload_dir: str = None, jd_path: str = N
             result = AiCandidateScreeningOutreachCrew().crew().kickoff(inputs=inputs)
             
             # Parse Pydantic output and update database
+            def apply_evaluation(candidate, eval_data):
+                candidate.name = eval_data.name
+                candidate.score = eval_data.score
+                candidate.recommendation = eval_data.recommendation
+                candidate.hard_filter_failed = eval_data.hard_filter_failed
+                candidate.set_strengths(eval_data.key_strengths)
+                candidate.set_gaps(eval_data.key_gaps)
+                candidate.rationale = eval_data.rationale
+                candidate.email_draft = eval_data.email_draft
+                candidate.sms_draft = eval_data.sms_draft
+
             if result.pydantic and hasattr(result.pydantic, 'evaluations'):
+                # Primary mapping: by the Candidate ID threaded through the prompts
+                chunk_by_id = {c.id: c for c in chunk}
+                unmatched_evals = []
                 for eval_data in result.pydantic.evaluations:
-                    # Find corresponding Candidate by ID
-                    candidate = db.query(Candidate).filter(
-                        Candidate.id == eval_data.candidate_id,
-                        Candidate.campaign_id == campaign_id
-                    ).first()
-                    
+                    candidate = chunk_by_id.pop(eval_data.candidate_id, None)
                     if candidate:
-                        candidate.name = eval_data.name
-                        candidate.score = eval_data.score
-                        candidate.recommendation = eval_data.recommendation
-                        candidate.hard_filter_failed = eval_data.hard_filter_failed
-                        candidate.set_strengths(eval_data.key_strengths)
-                        candidate.set_gaps(eval_data.key_gaps)
-                        candidate.rationale = eval_data.rationale
-                        candidate.email_draft = eval_data.email_draft
-                        candidate.sms_draft = eval_data.sms_draft
-                        
+                        apply_evaluation(candidate, eval_data)
+                    else:
+                        unmatched_evals.append(eval_data)
+                # Fallback: the model sometimes renumbers candidates sequentially.
+                # If the leftovers line up one-to-one, map them by chunk order.
+                leftover = sorted(chunk_by_id.values(), key=lambda c: c.id)
+                if unmatched_evals and len(unmatched_evals) == len(leftover):
+                    unmatched_evals.sort(key=lambda e: e.candidate_id)
+                    for candidate, eval_data in zip(leftover, unmatched_evals):
+                        apply_evaluation(candidate, eval_data)
+                elif unmatched_evals:
+                    print(
+                        f"Warning: {len(unmatched_evals)} evaluation(s) could not be "
+                        f"matched to candidates in campaign {campaign_id}"
+                    )
+
             db.commit()
             
             # Handle intermediate files for this chunk

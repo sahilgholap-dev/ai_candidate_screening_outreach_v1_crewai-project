@@ -25,7 +25,8 @@ from ai_candidate_screening_outreach.auth.deps import require_company_user
 from ai_candidate_screening_outreach.auth.routes import router as auth_router
 from ai_candidate_screening_outreach.auth.security import decode_access_token
 from ai_candidate_screening_outreach.db.database import engine, Base, get_db, SessionLocal
-from ai_candidate_screening_outreach.db.models import Campaign, Candidate, User
+from ai_candidate_screening_outreach.db.models import Campaign, Candidate, Company, User
+from ai_candidate_screening_outreach.schemas.requirements import RequirementsProfileV1
 from ai_candidate_screening_outreach.main import run_campaign_task
 from ai_candidate_screening_outreach.utils.indeed_scraper import IndeedDownloader
 
@@ -58,6 +59,26 @@ def _campaign_query(db: Session, user: User):
     return q
 
 
+@app.get("/api/my/company")
+async def my_company(
+    user: User = Depends(require_company_user), db: Session = Depends(get_db)
+):
+    """Company profile for the logged-in company user (drives form gating)."""
+    if user.role == "platform_admin":
+        raise HTTPException(status_code=400, detail="Admins are not linked to a company")
+    company = db.query(Company).filter(Company.id == user.company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+    return {
+        "id": company.id,
+        "name": company.name,
+        "default_region": company.default_region,
+        "default_threshold": company.default_threshold,
+        "allow_gender_eligibility": company.allow_gender_eligibility,
+        "office_locations": company.office_locations or [],
+    }
+
+
 @app.get("/api/campaigns")
 async def list_campaigns(
     user: User = Depends(require_company_user), db: Session = Depends(get_db)
@@ -70,6 +91,8 @@ async def create_campaign(
     background_tasks: BackgroundTasks,
     campaign_name: str = Form(...),
     threshold: float = Form(65.0),
+    region: str | None = Form(None),
+    requirements: str | None = Form(None),  # JSON-encoded RequirementsProfileV1
     jd_file: UploadFile = File(...),
     resume_files: List[UploadFile] = File(...),
     user: User = Depends(require_company_user),
@@ -81,11 +104,36 @@ async def create_campaign(
             detail="Campaigns are created by company users",
         )
 
+    company = db.query(Company).filter(Company.id == user.company_id).first()
+
+    # Validate the requirements profile, if provided
+    requirements_data = None
+    if requirements:
+        try:
+            profile = RequirementsProfileV1.model_validate_json(requirements)
+        except ValueError as e:
+            raise HTTPException(status_code=422, detail=f"Invalid requirements: {e}")
+        # Gender eligibility is admin-gated per company and always justified
+        if profile.gender_eligibility != "any" and not (
+            company and company.allow_gender_eligibility
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Gender-restricted campaigns are not enabled for this company",
+            )
+        requirements_data = profile.model_dump(mode="json")
+
+    campaign_region = (region or (company.default_region if company else "IN")).upper()
+    if campaign_region not in {"US", "UK", "IN"}:
+        raise HTTPException(status_code=422, detail="region must be US, UK or IN")
+
     new_campaign = Campaign(
         name=campaign_name,
         company_id=user.company_id,
         created_by=user.id,
+        region=campaign_region,
         threshold=threshold,
+        requirements=requirements_data,
         jd_text="",  # parsed in background
         status="Processing",
     )

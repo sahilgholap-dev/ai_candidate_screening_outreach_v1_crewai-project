@@ -53,9 +53,9 @@ TanStack Query, react-hook-form + zod.
 | Phase | Scope |
 | --- | --- |
 | 0 | Foundation: git, Alembic, WAL, Next.js scaffold (done) |
-| 1 | Tenancy & auth: companies/users tables, JWT, login flow |
-| 2 | Admin onboarding: company + user management (API + UI) |
-| 3 | Requirements Profile: structured campaign creation form |
+| 1 | Tenancy & auth: companies/users tables, JWT, login flow (done) |
+| 2 | Admin onboarding: company + user management (API + UI) (done) |
+| 3 | Requirements Profile: structured campaign creation form (done) |
 | 4 | Pipeline rework: dynamic hard filters/weights, job queue, per-run isolation |
 | 5 | Results & outreach review UI |
 | 6 | Hardening & compliance: retention, audit log, region rules |
