@@ -40,7 +40,15 @@ extract_job_requirements:
     on compensation).
 
 
-    If any field is not mentioned in either source, mark it as "Not specified".'
+    If any field is not mentioned in either source, mark it as "Not specified".
+
+    ABSOLUTE RULE — Minimum Years of Experience: state a numeric minimum ONLY if
+    that exact number appears verbatim in the job description or the recruiter''s
+    structured requirements (e.g. "3+ years", "minimum 2 years"). Phrases like
+    "production experience", "hands-on experience", or "proven track record" are
+    NOT numeric minimums — for those, write exactly "Not specified". NEVER infer,
+    estimate, or invent a number of years. The same applies to Must-Haves: never
+    add an experience-duration must-have that neither source states numerically.'
   expected_output: A structured markdown document titled "Unified Requirements Profile"
     with clearly labeled sections for each extracted field. Every item should be a
     bullet point, and items originating from the recruiter form should be marked "(recruiter)".

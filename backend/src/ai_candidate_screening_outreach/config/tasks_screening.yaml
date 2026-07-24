@@ -109,6 +109,14 @@ evaluate_and_score_candidates:
     **STEP 3 — Self-check (mandatory before writing any output)**
 
 
+    **Score finality rule:** once a candidate''s Step 2 table passes the cap check
+    and the arithmetic check, that TOTAL is FINAL. The ranked table and every later
+    section must transcribe it UNCHANGED. Re-audits may only correct a cap violation
+    or an arithmetic error in the table itself — never re-judge, re-weigh, or revise
+    a score after the table is written. Do not produce "revised" tables; write the
+    ranked table exactly once, from the final Step 2 totals.
+
+
     Go through EVERY non-hard-filtered candidate and verify ALL of the following.
     Fix any violation before proceeding:
 

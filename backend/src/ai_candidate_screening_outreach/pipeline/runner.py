@@ -87,10 +87,24 @@ def _contact_keys(text: str) -> set[str]:
     return keys
 
 
-def _apply_evaluation(candidate: Candidate, ev) -> None:
+def _final_recommendation(ev, threshold: float, maybe_band: int) -> tuple[int, str]:
+    """Boundary math is code, not LLM output. The model supplies the score and
+    evidence; the Shortlist/Maybe/Reject verdict is recomputed deterministically."""
+    if ev.hard_filter_failed:
+        return 0, "Reject (Hard Filter)"
+    score = max(0, min(100, ev.score))
+    if score >= threshold:
+        return score, "Shortlist"
+    if score >= threshold - maybe_band:
+        return score, "Maybe"
+    return score, "Reject"
+
+
+def _apply_evaluation(candidate: Candidate, ev, threshold: float, maybe_band: int) -> None:
+    score, recommendation = _final_recommendation(ev, threshold, maybe_band)
     candidate.name = ev.name
-    candidate.score = ev.score
-    candidate.recommendation = ev.recommendation
+    candidate.score = score
+    candidate.recommendation = recommendation
     candidate.hard_filter_failed = ev.hard_filter_failed
     candidate.set_strengths(ev.key_strengths)
     candidate.set_gaps(ev.key_gaps)
@@ -243,20 +257,21 @@ def run_campaign(campaign_id: int) -> None:
             _add_usage(total_usage, _usage_dict(result.token_usage))
 
             # Map evaluations back: by Candidate ID, then order-based fallback
+            maybe_band = profile.maybe_band if profile else 10
             if result.pydantic and hasattr(result.pydantic, "evaluations"):
                 chunk_by_id = {c.id: c for c in chunk}
                 unmatched = []
                 for ev in result.pydantic.evaluations:
                     candidate = chunk_by_id.pop(ev.candidate_id, None)
                     if candidate:
-                        _apply_evaluation(candidate, ev)
+                        _apply_evaluation(candidate, ev, campaign.threshold, maybe_band)
                     else:
                         unmatched.append(ev)
                 leftover = sorted(chunk_by_id.values(), key=lambda c: c.id)
                 if unmatched and len(unmatched) == len(leftover):
                     unmatched.sort(key=lambda e: e.candidate_id)
                     for candidate, ev in zip(leftover, unmatched):
-                        _apply_evaluation(candidate, ev)
+                        _apply_evaluation(candidate, ev, campaign.threshold, maybe_band)
                 elif unmatched:
                     print(
                         f"Warning: {len(unmatched)} evaluation(s) unmatched in campaign {campaign_id} chunk {chunk_no}"
