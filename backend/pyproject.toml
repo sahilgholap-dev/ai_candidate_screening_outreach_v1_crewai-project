@@ -21,6 +21,8 @@ dependencies = [
     "urllib3>=2.7.0",
     "chromedriver-autoinstaller>=0.6.4",
     "alembic>=1.18.5",
+    "pyjwt>=2.13.0",
+    "bcrypt>=5.0.0",
 ]
 
 [project.scripts]

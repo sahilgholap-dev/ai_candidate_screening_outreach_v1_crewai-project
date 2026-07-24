@@ -17,10 +17,12 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "alembic" },
+    { name = "bcrypt" },
     { name = "chromedriver-autoinstaller" },
     { name = "crewai", extra = ["anthropic", "file-processing", "litellm", "tools"] },
     { name = "fastapi" },
     { name = "jinja2" },
+    { name = "pyjwt" },
     { name = "pypdf" },
     { name = "python-docx" },
     { name = "python-dotenv" },
@@ -37,10 +39,12 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "alembic", specifier = ">=1.18.5" },
+    { name = "bcrypt", specifier = ">=5.0.0" },
     { name = "chromedriver-autoinstaller", specifier = ">=0.6.4" },
     { name = "crewai", extras = ["anthropic", "file-processing", "litellm", "tools"], specifier = "==1.15.0" },
     { name = "fastapi" },
     { name = "jinja2" },
+    { name = "pyjwt", specifier = ">=2.13.0" },
     { name = "pypdf" },
     { name = "python-docx" },
     { name = "python-dotenv", specifier = ">=1.2.2" },
