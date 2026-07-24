@@ -1,0 +1,39 @@
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+
+# Runtime data & artifacts
+*.db
+*.db-wal
+*.db-shm
+logs/
+uploads/
+outputs/
+downloads/
+
+# Stray pipeline output files written to CWD
+parsed.md
+requirements.md
+report.md
+outreach.md
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

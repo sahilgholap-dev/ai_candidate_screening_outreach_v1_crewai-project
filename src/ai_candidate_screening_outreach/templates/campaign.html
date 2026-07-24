@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campaign: {{ campaign.name }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div style="margin-bottom: 2rem;">
+            <a href="/" style="color: var(--text-muted); text-decoration: none;">&larr; Back to Dashboard</a>
+        </div>
+
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+                <div>
+                    <h1 style="margin: 0 0 0.5rem 0;">{{ campaign.name }}</h1>
+                    <p style="margin: 0; color: var(--text-muted);">Threshold: {{ campaign.threshold }}</p>
+                </div>
+                <span class="status-badge {{ campaign.status }}">{{ campaign.status }}</span>
+            </div>
+
+            {% if campaign.status == 'Processing' %}
+            <div style="text-align: center; padding: 3rem 0; border-bottom: 1px solid var(--border-color); margin-bottom: 2rem;">
+                <p style="color: var(--text-muted); font-size: 1.125rem;">The AI is currently evaluating the candidates in batches...</p>
+                <div style="margin: 1.5rem 0;">
+                    <strong style="font-size: 1.5rem; color: var(--primary-color);">{{ processed_count }} / {{ total_count }}</strong>
+                    <p style="margin: 0.5rem 0 0 0; color: var(--text-muted); font-size: 0.875rem;">Candidates Scored</p>
+                </div>
+                <button onclick="window.location.reload()" class="btn" style="background: white; color: var(--primary-color); border: 1px solid var(--primary-color);">Refresh Status</button>
+            </div>
+            {% endif %}
+
+            {% if processed_count > 0 %}
+            <div style="margin-top: 1rem;">
+                <h2>Evaluated Candidates ({{ processed_count }})</h2>
+                
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="filterCandidates('All', this)">All</button>
+                    <button class="tab-btn" onclick="filterCandidates('Shortlist', this)">Shortlisted</button>
+                    <button class="tab-btn" onclick="filterCandidates('Maybe', this)">Maybe</button>
+                    <button class="tab-btn" onclick="filterCandidates('Reject', this)">Rejected</button>
+                </div>
+
+                {% for cand in candidates %}
+                {% if cand.score is not none %}
+                <div class="card candidate-card" data-recommendation="{{ cand.recommendation }}">
+                    <div class="candidate-header" style="cursor: pointer;" onclick="toggleDetails(this)">
+                        <div>
+                            <h3 style="margin: 0 0 0.5rem 0;">
+                                <span style="font-size: 0.8em; margin-right: 0.5rem;">▼</span>
+                                {{ cand.name or cand.original_filename }}
+                            </h3>
+                            {% if cand.recommendation %}
+                            <span class="status-badge badge-{{ cand.recommendation }}">{{ cand.recommendation }}</span>
+                            {% endif %}
+                            {% if cand.hard_filter_failed %}
+                            <span class="status-badge Error" style="margin-left: 0.5rem;">Failed Hard Filter</span>
+                            {% endif %}
+                        </div>
+                        <div class="candidate-score-circle {% if cand.score >= 80 %}score-high{% elif cand.score >= 50 %}score-medium{% else %}score-low{% endif %}">
+                            {{ cand.score }}
+                        </div>
+                    </div>
+                    
+                    <div class="candidate-details" style="display: none; margin-top: 1rem;">
+                    {% if cand.rationale %}
+                    <div class="rationale-box">
+                        <strong>Rationale:</strong> {{ cand.rationale }}
+                    </div>
+                    {% endif %}
+                    
+                    <div class="info-grid">
+                        <div class="info-section">
+                            <h4>Key Strengths</h4>
+                            <ul>
+                                {% for s in cand.get_strengths() %}
+                                <li>{{ s }}</li>
+                                {% else %}
+                                <li><em>None recorded</em></li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        <div class="info-section">
+                            <h4>Key Gaps</h4>
+                            <ul>
+                                {% for g in cand.get_gaps() %}
+                                <li>{{ g }}</li>
+                                {% else %}
+                                <li><em>None recorded</em></li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    {% if cand.email_draft or cand.sms_draft %}
+                    <div style="margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
+                        <h4 style="margin: 0 0 1rem 0;">Outreach Drafts</h4>
+                        {% if cand.email_draft %}
+                        <div style="margin-bottom: 1rem;">
+                            <strong style="font-size: 0.875rem; color: var(--text-muted);">Email</strong>
+                            <div class="outreach-draft">{{ cand.email_draft }}</div>
+                        </div>
+                        {% endif %}
+                        {% if cand.sms_draft %}
+                        <div>
+                            <strong style="font-size: 0.875rem; color: var(--text-muted);">SMS</strong>
+                            <div class="outreach-draft">{{ cand.sms_draft }}</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
+            <script>
+                function toggleDetails(headerElement) {
+                    const details = headerElement.nextElementSibling;
+                    const chevron = headerElement.querySelector('h3 span');
+                    if (details.style.display === 'none') {
+                        details.style.display = 'block';
+                        chevron.style.transform = 'rotate(180deg)';
+                        chevron.style.display = 'inline-block';
+                    } else {
+                        details.style.display = 'none';
+                        chevron.style.transform = 'rotate(0deg)';
+                    }
+                }
+
+                function filterCandidates(status, btnElement) {
+                    // Update active tab button
+                    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+                    btnElement.classList.add('active');
+
+                    // Filter candidate cards
+                    const cards = document.querySelectorAll('.candidate-card');
+                    cards.forEach(card => {
+                        const rec = card.getAttribute('data-recommendation');
+                        if (status === 'All' || rec === status || (status === 'Reject' && rec && rec.includes('Reject'))) {
+                            card.style.display = 'block';
+                        } else {
+                            card.style.display = 'none';
+                        }
+                    });
+                }
+            </script>
+        </div>
+    </div>
+</body>
+</html>

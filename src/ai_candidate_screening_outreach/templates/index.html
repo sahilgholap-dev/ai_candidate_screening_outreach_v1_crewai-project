@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Candidate Screening</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h1>AI Candidate Screening</h1>
+                <p>Automated resume shortlisting powered by CrewAI</p>
+            </div>
+            <div>
+                <a href="/scraper" class="btn btn-secondary" style="margin-right: 0.5rem; background: #3b82f6; color: white; border: none;">Run Indeed Scraper</a>
+            </div>
+        </header>
+
+        <div class="card">
+            <form action="/campaign/create" method="POST" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="campaign_name">Job Campaign Name</label>
+                    <input type="text" id="campaign_name" name="campaign_name" required placeholder="e.g. Senior Frontend Engineer Q3">
+                </div>
+
+                <div class="form-group">
+                    <label for="threshold">Score Threshold</label>
+                    <input type="number" id="threshold" name="threshold" value="65" required placeholder="65">
+                </div>
+
+                <div class="form-group">
+                    <label for="jd_file">Job Description</label>
+                    <input type="file" id="jd_file" name="jd_file" accept=".pdf,.docx,.txt" required>
+                    <span class="file-help">Upload the Job Description (PDF or Word)</span>
+                </div>
+
+                <div class="form-group">
+                    <label for="resume_files">Candidate Resumes</label>
+                    <input type="file" id="resume_files" name="resume_files" accept=".pdf,.docx,.txt" multiple required>
+                    <span class="file-help">Upload multiple candidate resumes (PDF or Word)</span>
+                </div>
+
+                <button type="submit" class="btn btn-block">Create Campaign & Analyze</button>
+            </form>
+        </div>
+        
+        {% if campaigns %}
+        <div style="margin-top: 3rem;">
+            <form action="/delete-campaigns" method="POST" onsubmit="return confirm('Are you sure you want to delete the selected campaigns?');">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h2 style="margin: 0;">Recent Campaigns</h2>
+                    <div>
+                        <button type="submit" class="btn btn-secondary" style="margin-right: 0.5rem; color: #ef4444; border-color: #ef4444;">Delete Selected</button>
+                        <button type="button" class="btn" style="background-color: #ef4444;" onclick="if(confirm('Are you sure you want to delete all campaigns? This cannot be undone.')) { document.getElementById('clear-db-form').submit(); }">Clear Database</button>
+                    </div>
+                </div>
+                <div style="display: grid; gap: 1rem;">
+                    {% for campaign in campaigns %}
+                    <div class="card" style="padding: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+                        <div style="display: flex; align-items: center; gap: 1rem;">
+                            <input type="checkbox" name="campaign_ids" value="{{ campaign.id }}" style="width: 1.2rem; height: 1.2rem; cursor: pointer;">
+                            <div>
+                                <h3 style="margin: 0 0 0.5rem 0;">{{ campaign.name }}</h3>
+                                <span class="status-badge {{ campaign.status }}">{{ campaign.status }}</span>
+                            </div>
+                        </div>
+                        <a href="/campaign/{{ campaign.id }}" class="btn" style="background: white; color: var(--primary-color); border: 1px solid var(--primary-color);">View</a>
+                    </div>
+                    {% endfor %}
+                </div>
+            </form>
+            <form id="clear-db-form" action="/clear-db" method="POST" style="display: none;"></form>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Indeed Scraper | AI Candidate Screening</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .scraper-console {
+            background-color: #0d1117;
+            color: #c9d1d9;
+            font-family: 'Consolas', 'Courier New', monospace;
+            padding: 1rem;
+            border-radius: 6px;
+            height: 400px;
+            overflow-y: auto;
+            margin-top: 1rem;
+            white-space: pre-wrap;
+        }
+        .controls { display: flex; gap: 1rem; margin-top: 1rem; }
+        .interactive-prompt {
+            background-color: #1f2937;
+            border: 1px solid #3b82f6;
+            padding: 1rem;
+            border-radius: 6px;
+            margin-top: 1rem;
+            display: none;
+        }
+        .interactive-prompt h3 { color: #60a5fa; margin-top: 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h1>Indeed Scraper Console</h1>
+                <p>Fetch resumes directly from Indeed</p>
+            </div>
+            <a href="/" class="btn btn-secondary">Back to Dashboard</a>
+        </header>
+
+        <div class="card">
+            <form id="scraper-form">
+                <div class="form-group">
+                    <label>DOWNLOAD MODE:</label>
+                    <select id="mode" name="mode" class="form-control" required>
+                        <option value="backend">1. Backend (API) - Faster, parallel downloads</option>
+                        <option value="frontend">2. Frontend (Selenium) - More stable, simulated clicks</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>JOB SELECTION MODE:</label>
+                    <select id="job_mode" name="job_mode" class="form-control" required onchange="toggleStatus()">
+                        <option value="single">1. Single job - You navigate to the desired job</option>
+                        <option value="all">2. All jobs - Automatically loops through all jobs</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="status-group" style="display: none;">
+                    <label>STATUT DES ANNONCES À TRAITER:</label>
+                    <select id="job_status" name="job_status" class="form-control">
+                        <option value="ACTIVE">1. Open only (ACTIVE)</option>
+                        <option value="PAUSED">2. Paused only (PAUSED)</option>
+                        <option value="CLOSED">3. Closed only (CLOSED)</option>
+                        <option value="ACTIVE,PAUSED">4. Open + Paused</option>
+                        <option value="ACTIVE,PAUSED,CLOSED">5. All (Open + Paused + Closed)</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn btn-block" id="start-btn">Start Scraper</button>
+            </form>
+
+            <div id="interactive-section" class="interactive-prompt">
+                <h3 id="interactive-msg">Action Required</h3>
+                <div id="input-container" style="display: none;">
+                    <input type="text" id="interactive-input" class="form-control" style="margin-bottom: 1rem;">
+                </div>
+                <button type="button" class="btn" id="continue-btn">Continue</button>
+            </div>
+
+            <div class="scraper-console" id="console">
+                <span style="color: #8b949e;">Ready to start scraping...</span><br>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleStatus() {
+            const mode = document.getElementById('job_mode').value;
+            document.getElementById('status-group').style.display = (mode === 'all') ? 'block' : 'none';
+        }
+
+        let ws = null;
+        let currentAction = null;
+
+        document.getElementById('scraper-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            document.getElementById('start-btn').disabled = true;
+            document.getElementById('console').innerHTML = '';
+            
+            const mode = document.getElementById('mode').value;
+            const job_mode = document.getElementById('job_mode').value;
+            const job_status = document.getElementById('job_status').value;
+
+            // Connect WebSocket
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${window.location.host}/ws/scraper?mode=${mode}&job_mode=${job_mode}&job_status=${job_status}`);
+            
+            ws.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                if (data.type === 'log') {
+                    const consoleDiv = document.getElementById('console');
+                    consoleDiv.innerHTML += data.message + '<br>';
+                    consoleDiv.scrollTop = consoleDiv.scrollHeight;
+                } else if (data.type === 'action') {
+                    currentAction = data.action;
+                    document.getElementById('interactive-section').style.display = 'block';
+                    document.getElementById('interactive-msg').innerText = data.message;
+                    if (data.action === 'input') {
+                        document.getElementById('input-container').style.display = 'block';
+                    } else {
+                        document.getElementById('input-container').style.display = 'none';
+                    }
+                } else if (data.type === 'finished') {
+                    document.getElementById('start-btn').disabled = false;
+                    document.getElementById('console').innerHTML += '<br><span style="color: #4ade80;">Scraping complete!</span><br>';
+                }
+            };
+
+            ws.onclose = function() {
+                document.getElementById('start-btn').disabled = false;
+            };
+        });
+
+        document.getElementById('continue-btn').addEventListener('click', () => {
+            if (ws && currentAction) {
+                const val = document.getElementById('interactive-input').value;
+                ws.send(JSON.stringify({ action: 'continue', value: val }));
+                document.getElementById('interactive-section').style.display = 'none';
+                document.getElementById('interactive-input').value = '';
+                currentAction = null;
+            }
+        });
+    </script>
+</body>
+</html>

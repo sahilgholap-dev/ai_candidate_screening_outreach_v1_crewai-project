@@ -1,0 +1,189 @@
+---
+extract_job_requirements:
+  description: |-
+    Analyze the following job description and extract all requirements into a structured profile.
+
+    Job Description:
+    {job_description}
+
+    Extract and organize the following fields:
+    - **Required Skills**: Non-negotiable technical and soft skills explicitly stated.
+    - **Preferred / Nice-to-Have Skills**: Skills mentioned as a bonus or "plus".
+    - **Minimum Years of Experience**: The lowest acceptable experience level.
+    - **Location**: Office city/region or "Remote".
+    - **Work Mode**: On-site / Hybrid / Remote.
+    - **Education Requirements**: Degree level and field if specified.
+    - **Must-Haves**: Any hard requirements beyond skills (e.g., security clearance, specific certifications, legal work authorization).
+    - **Nice-to-Haves**: Any additional desirable qualities that are not blockers.
+
+    If any field is not mentioned in the JD, mark it as "Not specified".
+  expected_output: A structured markdown document titled "Job Requirements Profile"
+    with clearly labeled sections for each extracted field. Every item should be a
+    bullet point. Include a brief "Summary" paragraph at the top (2–3 sentences) describing
+    the role in plain language.
+  agent: senior_technical_recruiter
+parse_candidate_resumes:
+  description: |-
+    Parse all candidate resumes provided below. Multiple resumes are separated by a line containing only "---". For each resume, extract a structured candidate profile.
+
+    Resumes:
+    {resumes}
+
+    For each candidate, extract:
+    - **Full Name**
+    - **Email**
+    - **Phone**
+    - **Location** (city, state/country if available)
+    - **Total Years of Experience** (calculate from work history dates if not explicitly stated)
+    - **Skills** (all technical and soft skills mentioned)
+    - **Past Roles** (job title, company name, start date – end date, brief description if available)
+    - **Education** (degree, field of study, institution, graduation year)
+
+    If a field is absent from the resume, record it as "Not provided". Do not infer or guess any information not explicitly present.
+  expected_output: 'A structured markdown document titled "Candidate Profiles" containing
+    one clearly labeled section per candidate (e.g., "## Candidate 1: [Full Name]").
+    Each section lists all extracted fields as labeled bullet points. End with a brief
+    "## Summary" stating the total number of candidates parsed.'
+  agent: resume_data_extraction_specialist
+evaluate_and_score_candidates:
+  description: |-
+    Using the extracted Job Requirements Profile and all Candidate Profiles, evaluate every candidate objectively and produce a scored shortlist.
+
+    Shortlist threshold: {threshold} (at or above = "Shortlist"; within 10 points below = "Maybe"; below that = "Reject").
+
+    ---
+
+    **STEP 0 — Deduplication**
+    List every candidate name you see. If the same name appears more than once, keep the entry with the most information, discard all others, and note the merge. The final ranked table must have EXACTLY ONE ROW per unique name. Row count must equal unique candidate count. Count and state the unique candidate count before proceeding.
+
+    ---
+
+    **STEP 1 — Hard Filters**
+    Permitted hard filter reasons — EXACTLY TWO, no others:
+
+    **1a. Location filter:**
+    - PASS if located in the required city/region.
+    - PASS if the resume explicitly states willingness to relocate OR commute to the required location. Any phrasing indicating openness to relocation counts.
+    - PASS if the candidate's current location is in the same metropolitan area or is geographically adjacent/close enough for a plausible daily commute (e.g., Mumbai/Navi Mumbai to Thane). Do NOT fail candidates who live in neighboring cities.
+    - FAIL ONLY if located in a clearly incompatible/distant location (e.g., a different state or country) AND NO relocation/commute signal exists anywhere in the resume.
+    - If JD location = "Not specified" or "Remote" → everyone passes automatically.
+
+    **1b. Minimum Experience filter:**
+    - ONLY applies if the JD states an explicit numeric minimum (e.g., "5+ years required").
+    - **If JD Minimum Experience = "Not specified" → this filter DOES NOT EXIST. Zero candidates may ever be hard-filtered for experience, years, or lack of practical experience.**
+
+    Any candidate who fails a permitted hard filter: score = 0, Recommendation = "Reject (Hard Filter)", Hard Filter Failed = Y. Write one line in Scoring Notes stating exactly which filter (1a or 1b) they failed and the resume evidence. Do NOT fill in a full scoring table for them.
+
+    All other candidates proceed to Step 2.
+
+    ---
+
+    **STEP 2 — Score each passing candidate using this exact table:**
+
+    | Bucket | Cap | Score Awarded | Justification |
+    |---|---|---|---|
+    | Required Skills match | 40 | ? | List each matched/unmatched required skill |
+    | Must-Haves met | 25 | ? | List each JD-listed must-have and whether met |
+    | Years of experience quality | 15 | ? | See rule below — read carefully |
+    | Education match | 10 | ? | See rule below — read carefully |
+    | Preferred / Nice-to-Have skills | 10 | ? | List matched preferred skills |
+    | **TOTAL** | **100** | **?** | **Write: B1 + B2 + B3 + B4 + B5 = Total** |
+
+    **Bucket rules — every rule is absolute:**
+
+    *Required Skills (cap 40):*
+    - Weight most heavily: (a) demonstrated shipping of real products built WITH AI coding tools, and (b) depth and breadth of daily AI-tool usage named in the JD.
+    - If a skill or tool appears on the candidate's resume, it MUST be counted as present. Never mark a skill as missing if it is listed on their resume.
+    - Score awarded ≤ 40. If you write a number above 40, replace it with 40 before continuing.
+
+    *Must-Haves (cap 25) — READ THIS RULE TWICE BEFORE SCORING:*
+    - **RULE: The Must-Haves bucket covers ONLY criteria that the JD explicitly labels as must-haves — typically location/relocation and legal work authorization.**
+    - **BANNED from this bucket — these NEVER reduce Must-Have points under any circumstance:**
+      - Portfolio quality or existence
+      - Shipping history or product delivery record
+      - Degree, education level, or certification
+      - Years of experience or seniority
+      - Any criterion that is "Not specified" in the JD
+      - Any criterion you inferred or invented that is not literally written in the JD
+    - To score this bucket: read the JD's Must-Have list. For each listed item, check if the candidate meets it. Sum only those. A candidate in the required location who meets all listed must-haves scores 25/25 — even if their portfolio is thin or they lack a degree.
+    - Score awarded ≤ 25. If you write a number above 25, replace it with 25 before continuing.
+
+    *Years of Experience (cap 15) — READ THIS RULE TWICE BEFORE SCORING:*
+    - **RULE: If JD Minimum Experience = "Not specified" → type exactly "15" in the Score Awarded cell for EVERY candidate. Do not scale. Do not assess years. Do not consider whether years seem low. The answer is always 15.**
+    - If a numeric minimum IS specified → award 15 for meeting/exceeding it, scale proportionally for falling short.
+    - Score awarded ≤ 15. If you write a number above 15, replace it with 15 before continuing.
+
+    *Education (cap 10) — READ THIS RULE TWICE BEFORE SCORING:*
+    - **RULE: If JD Education = "Not specified" → type exactly "10" in the Score Awarded cell for EVERY candidate. Do not consider degree level. Do not penalize self-taught candidates or those with only online certifications. The answer is always 10.**
+    - If a specific degree/field IS required → score accordingly.
+    - Score awarded ≤ 10. If you write a number above 10, replace it with 10 before continuing.
+
+    *Preferred / Nice-to-Have skills (cap 10):*
+    - Score awarded ≤ 10. If you write a number above 10, replace it with 10 before continuing.
+
+    ---
+
+    **STEP 3 — Self-check (mandatory before writing any output)**
+
+    Go through EVERY non-hard-filtered candidate and verify ALL of the following. Fix any violation before proceeding:
+
+    A. **Cap check**: Every bucket value ≤ its cap. Correct any that exceed it.
+    B. **Arithmetic check**: B1 + B2 + B3 + B4 + B5 must equal the TOTAL cell exactly. Recompute if needed.
+    C. **Table consistency**: The score in the ranked table must equal the TOTAL from the scoring notes. If they differ, fix the ranked table.
+    D. **Hard Filter column consistency**: Hard Filter Failed = Y ↔ Recommendation = "Reject (Hard Filter)" and Score = 0. Hard Filter Failed = N ↔ Recommendation is one of Shortlist / Maybe / Reject only (never "Reject (Hard Filter)").
+    E. **Sort order**: Ranked table sorted strictly by Score descending. Ranks are sequential integers starting at 1 with no gaps.
+    F. **Key Gaps accuracy**: Never list a skill or tool as a gap if it appears on the candidate's resume. Never mention missing degree or education when JD Education = "Not specified". Never mention insufficient experience when JD Minimum Experience = "Not specified".
+    G. **Shortlist section**: Contains ONLY candidates whose Recommendation = "Shortlist". No Maybe or Reject candidates.
+    H. **One row per candidate**: Confirm row count equals unique candidate count from Step 0. If any name appears twice, remove the duplicate.
+    I. **Scoring Notes completeness**: Each non-hard-filtered candidate has exactly ONE scoring table. Hard-filtered candidates have exactly ONE line (no scoring table).
+    J. **Must-Haves self-audit**: For every candidate, re-read your Must-Haves justification. If it mentions portfolio, shipping history, degree, experience level, or any criterion not in the JD's must-have list → set that deduction to 0 and recalculate.
+
+    ---
+
+    **STEP 4 — Recommendation**
+    Apply threshold to all non-hard-filtered candidates:
+    - Score ≥ {threshold} → Shortlist
+    - Score ≥ {threshold} − 10 → Maybe
+    - Score < {threshold} − 10 → Reject
+
+    ---
+
+    **Bias Awareness (strictly enforced):**
+    Evaluate ONLY on job-relevant criteria. NEVER consider age, gender, ethnicity, nationality, name origin, graduation year as an age proxy, or any other protected attribute.
+  expected_output: |-
+    A markdown report with four sections:
+
+    1. **Deduplication Note** — List any duplicates found and how handled. State total unique candidate count. Confirm this matches the row count in the ranked table.
+
+    2. **Ranked Candidate Table** — Sorted strictly by Score descending. Columns: Rank | Name | Score | Recommendation | Hard Filter Failed (Y/N) | Key Strengths | Key Gaps.
+       - Exactly one row per unique candidate.
+       - Every score matches the candidate's Step 2 TOTAL exactly.
+       - Hard Filter Failed = Y ↔ Recommendation = "Reject (Hard Filter)", Score = 0.
+       - Hard Filter Failed = N ↔ Recommendation is Shortlist / Maybe / Reject only.
+       - Key Gaps never mentions a missing degree or education when JD Education = "Not specified".
+       - Key Gaps never contradicts a skill listed on the candidate's resume.
+       - Key Gaps never mentions insufficient experience when JD Minimum Experience = "Not specified".
+
+    3. **Shortlist** — ONLY candidates with Recommendation = "Shortlist", each with a one-line rationale grounded in their resume. If none reach the threshold, write "No candidates met the shortlist threshold."
+
+    4. **Scoring Notes** — For every non-hard-filtered candidate: exactly one filled Step 2 table with explicit arithmetic (B1 + B2 + B3 + B4 + B5 = Total) confirmed. Every bucket ≤ its cap. Must-Haves justification references only criteria explicitly listed in the JD — no invented criteria. For hard-filtered candidates: exactly one line stating which permitted filter (1a location or 1b explicit numeric experience minimum) they failed and the resume evidence. No full scoring table for hard-filtered candidates.
+  agent: candidate_assessment_expert
+  context:
+  - extract_job_requirements
+  - parse_candidate_resumes
+draft_candidate_outreach_messages:
+  description: |-
+    Compile the evaluation results from the previous step and draft personalized outreach messages for every candidate whose recommendation is "Shortlist".
+    
+    1. For ALL candidates, extract their evaluation details (score, recommendation, hard_filter_failed, key_strengths, key_gaps, rationale) from the context.
+    2. For ONLY the shortlisted candidates, draft outreach messages:
+       - **Email**: A short, warm, personalized email (150-200 words) with a specific subject line. Reference their specific background. Do NOT use bracketed placeholders.
+       - **SMS**: A brief SMS version (under 160 chars) introducing the opportunity.
+    3. Ensure that the final output includes ALL candidates (both shortlisted and rejected), but only the shortlisted ones will have email and SMS drafts.
+  expected_output: |-
+    A structured JSON response containing the evaluations for all candidates.
+    For each candidate, include their name, score, recommendation, hard_filter_failed boolean,
+    key_strengths, key_gaps, rationale, email_draft, and sms_draft. Ensure the schema strictly matches the requested format.
+  agent: talent_outreach_specialist
+  context:
+  - evaluate_and_score_candidates
