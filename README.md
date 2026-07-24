@@ -1,54 +1,61 @@
-# AiCandidateScreeningOutreach Crew
+# AI Candidate Screening & Outreach — Multi-Tenant Platform
 
-Welcome to the AiCandidateScreeningOutreach Crew project, powered by [crewAI](https://crewai.com). This template is designed to help you set up a multi-agent AI system with ease, leveraging the powerful and flexible framework provided by crewAI. Our goal is to enable your agents to collaborate effectively on complex tasks, maximizing their collective intelligence and capabilities.
+Multi-tenant recruitment screening platform. Platform admins onboard companies
+(with a full company profile); company users upload a JD + resumes per campaign,
+answer a structured requirements form, and run an AI screening pipeline
+(CrewAI + Claude) that scores candidates, applies recruiter-defined hard
+filters, and drafts human-reviewed outreach messages.
 
-## Installation
+Target markets: US, UK, India.
 
-Ensure you have Python >=3.10 <3.14 installed on your system. This project uses [UV](https://docs.astral.sh/uv/) for dependency management and package handling, offering a seamless setup and execution experience.
+## Repository layout
 
-First, if you haven't already, install uv:
-
-```bash
-pip install uv
+```text
+backend/    FastAPI + SQLAlchemy + Alembic + CrewAI pipeline (Python, uv)
+frontend/   Next.js (App Router) + Tailwind CSS + shadcn/ui (TypeScript)
 ```
 
-Next, navigate to your project directory and install the dependencies:
-
-(Optional) Lock the dependencies and install them by using the CLI command:
-```bash
-crewai install
-```
-### Customizing
-
-**Add your `OPENAI_API_KEY` into the `.env` file**
-
-- Modify `src/ai_candidate_screening_outreach/config/agents.yaml` to define your agents
-- Modify `src/ai_candidate_screening_outreach/config/tasks.yaml` to define your tasks
-- Modify `src/ai_candidate_screening_outreach/crew.py` to add your own logic, tools and specific args
-- Modify `src/ai_candidate_screening_outreach/main.py` to add custom inputs for your agents and tasks
-
-## Running the Project
-
-To kickstart your crew of AI agents and begin task execution, run this from the root folder of your project:
+## Backend
 
 ```bash
-$ crewai run
+cd backend
+uv sync                                  # install deps into .venv
+# .env must contain ANTHROPIC_API_KEY
+uv run alembic upgrade head              # apply DB migrations (SQLite: campaigns.db)
+uv run uvicorn ai_candidate_screening_outreach.app:app --reload --port 8000
 ```
 
-This command initializes the ai_candidate_screening_outreach Crew, assembling the agents and assigning them tasks as defined in your configuration.
+- Database: SQLite for now (`backend/campaigns.db`, WAL mode). Set `DATABASE_URL`
+  to a Postgres URL to switch — no code changes required.
+- Migrations: Alembic (`backend/alembic/`), configured with `render_as_batch`
+  for SQLite compatibility.
 
-This example, unmodified, will run the create a `report.md` file with the output of a research on LLMs in the root folder.
+## Frontend
 
-## Understanding Your Crew
+```bash
+cd frontend
+npm install
+npm run dev                              # http://localhost:3000
+```
 
-The ai_candidate_screening_outreach Crew is composed of multiple AI agents, each with unique roles, goals, and tools. These agents collaborate on a series of tasks, defined in `config/tasks.yaml`, leveraging their collective skills to achieve complex objectives. The `config/agents.yaml` file outlines the capabilities and configurations of each agent in your crew.
+Stack: Next.js App Router, TypeScript, Tailwind v4, shadcn/ui,
+TanStack Query, react-hook-form + zod.
 
-## Support
+## Secrets & data hygiene
 
-For support, questions, or feedback regarding the AiCandidateScreeningOutreach Crew or crewAI.
-- Visit our [documentation](https://docs.crewai.com)
-- Reach out to us through our [GitHub repository](https://github.com/joaomdmoura/crewai)
-- [Join our Discord](https://discord.com/invite/X4JWnZnxPb)
-- [Chat with our docs](https://chatg.pt/DWjSBZn)
+- `.env`, `*.db`, `logs/`, `uploads/`, `outputs/`, `downloads/` are gitignored.
+  Never commit API keys or scraper session cookies.
+- Outreach messages are drafts only and require human review — the system never
+  sends anything automatically.
 
-Let's create wonders together with the power and simplicity of crewAI.
+## Implementation phases
+
+| Phase | Scope |
+| --- | --- |
+| 0 | Foundation: git, Alembic, WAL, Next.js scaffold (done) |
+| 1 | Tenancy & auth: companies/users tables, JWT, login flow |
+| 2 | Admin onboarding: company + user management (API + UI) |
+| 3 | Requirements Profile: structured campaign creation form |
+| 4 | Pipeline rework: dynamic hard filters/weights, job queue, per-run isolation |
+| 5 | Results & outreach review UI |
+| 6 | Hardening & compliance: retention, audit log, region rules |

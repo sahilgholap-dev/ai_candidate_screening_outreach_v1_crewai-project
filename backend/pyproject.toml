@@ -1,8 +1,8 @@
 [project]
 name = "ai_candidate_screening_outreach"
 version = "0.1.0"
-description = "ai_candidate_screening_outreach using crewAI"
-authors = [{ name = "Your Name", email = "you@example.com" }]
+description = "Multi-tenant AI candidate screening and outreach platform (CrewAI)"
+authors = [{ name = "Sahil Gholap", email = "sahil.gholap@mastertech.co.in" }]
 requires-python = ">=3.10,<3.14"
 dependencies = [
     "crewai[anthropic,file-processing,litellm,tools]==1.15.0",
@@ -20,6 +20,7 @@ dependencies = [
     "python-dotenv>=1.2.2",
     "urllib3>=2.7.0",
     "chromedriver-autoinstaller>=0.6.4",
+    "alembic>=1.18.5",
 ]
 
 [project.scripts]
@@ -28,7 +29,6 @@ run_crew = "ai_candidate_screening_outreach.main:run"
 train = "ai_candidate_screening_outreach.main:train"
 replay = "ai_candidate_screening_outreach.main:replay"
 test = "ai_candidate_screening_outreach.main:test"
-run_with_trigger = "ai_candidate_screening_outreach.main:run_with_trigger"
 
 [build-system]
 requires = ["hatchling"]
