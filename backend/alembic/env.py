@@ -17,7 +17,9 @@ from ai_candidate_screening_outreach.db.database import (  # noqa: E402
 from ai_candidate_screening_outreach.db import models  # noqa: E402,F401  (registers tables)
 
 config = context.config
-config.set_main_option("sqlalchemy.url", SQLALCHEMY_DATABASE_URL)
+# configparser treats % as interpolation syntax; URLs with percent-encoded
+# characters (e.g. %40 for @ in passwords) must escape it as %%.
+config.set_main_option("sqlalchemy.url", SQLALCHEMY_DATABASE_URL.replace("%", "%%"))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
