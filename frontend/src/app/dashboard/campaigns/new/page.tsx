@@ -36,7 +36,11 @@ export default function NewCampaignPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  const { data: company } = useQuery<MyCompany>({
+  const {
+    data: company,
+    isPending: companyLoading,
+    error: companyError,
+  } = useQuery<MyCompany>({
     queryKey: ["my-company"],
     queryFn: () => api("/my/company"),
   });
@@ -187,13 +191,24 @@ export default function NewCampaignPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {company && (
+            {company ? (
               <RequirementsForm
                 value={requirements}
                 onChange={setRequirements}
                 region={region}
                 company={company}
               />
+            ) : companyLoading ? (
+              <p className="text-sm text-muted-foreground">
+                Loading company profile…
+              </p>
+            ) : (
+              <p className="text-sm text-destructive">
+                Couldn&apos;t load your company profile
+                {companyError instanceof Error ? ` — ${companyError.message}` : ""}.
+                The requirements form needs it; check that the backend is
+                running, then reload this page.
+              </p>
             )}
           </CardContent>
         </Card>
