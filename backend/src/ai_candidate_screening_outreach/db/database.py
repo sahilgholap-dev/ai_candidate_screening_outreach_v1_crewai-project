@@ -1,9 +1,12 @@
 import os
 
+from dotenv import load_dotenv
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-# SQLite for now; switch to Postgres later by setting DATABASE_URL — no code change needed.
+load_dotenv()  # ensure .env is read even if this module is imported first
+
+# Postgres (Supabase) via DATABASE_URL; falls back to local SQLite.
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./campaigns.db")
 
 IS_SQLITE = SQLALCHEMY_DATABASE_URL.startswith("sqlite")
