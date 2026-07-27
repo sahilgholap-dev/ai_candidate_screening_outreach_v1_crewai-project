@@ -31,13 +31,17 @@ def render_unified_requirements(profile: UnifiedRequirements) -> str:
             return "- Not specified"
         return "\n".join(f"- {v}" for v in values)
 
+    required = items(
+        [f"{s.skill} (core)" if s.core else s.skill for s in profile.required_skills]
+    )
+
     return f"""# Unified Requirements Profile
 
 ## Summary
 {profile.summary}
 
 ## Required Skills
-{items(profile.required_skills)}
+{required}
 
 ## Preferred / Nice-to-Have Skills
 {items(profile.preferred_skills)}
@@ -386,9 +390,11 @@ For every non-hard-filtered candidate produce:
 
 1. **required_skill_judgments** — exactly one entry per item under "Required Skills"
    in the Unified Requirements Profile, in the same order, with the item text copied
-   exactly. `present` = true if the skill (or a clear equivalent, e.g. "RN" for React
-   Native) appears anywhere on the resume — a skill listed on the resume ALWAYS counts
-   as present. `present` = false ONLY when the skill is absent from the resume entirely.
+   exactly (omit any "(core)" marker — it is a weighting note for the system, not part
+   of the skill name). `present` = true if the skill (or a clear equivalent, e.g. "RN"
+   for React Native) appears anywhere on the resume — a skill listed on the resume
+   ALWAYS counts as present. `present` = false ONLY when the skill is absent from the
+   resume entirely.
 
 2. **preferred_skill_judgments** — same rules, one entry per "Preferred / Nice-to-Have
    Skills" item.

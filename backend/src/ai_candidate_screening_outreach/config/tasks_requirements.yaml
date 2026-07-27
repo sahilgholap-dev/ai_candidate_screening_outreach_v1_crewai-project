@@ -17,7 +17,12 @@ extract_job_requirements:
 
     Extract and organize the following fields:
 
-    - **Required Skills**: Non-negotiable technical and soft skills.
+    - **Required Skills**: Non-negotiable technical and soft skills. Mark each skill
+    core=true ONLY when it is central to the role: it appears in the job title, is
+    described as the primary day-to-day function, or is listed in the recruiter''s
+    structured must-have skills. Supporting tools and secondary skills (version
+    control, familiarity-level items, collaboration tools) are core=false. Most
+    roles have 1-4 core skills.
 
     - **Preferred / Nice-to-Have Skills**: Skills mentioned as a bonus or "plus".
 

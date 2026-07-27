@@ -12,6 +12,14 @@ from ..db.models import CandidateEvaluation, UnifiedRequirements
 from ..schemas.requirements import CustomWeights
 
 _NUMBER_RE = re.compile(r"\d+(?:\.\d+)?")
+_CORE_SUFFIX_RE = re.compile(r"\s*\(core\)\s*$", re.IGNORECASE)
+
+# A core skill (central to the role) weighs this many supporting skills.
+CORE_WEIGHT = 3
+
+
+def _norm(skill: str) -> str:
+    return _CORE_SUFFIX_RE.sub("", skill.strip()).lower()
 
 
 def _parse_min_years(value: str | None) -> float | None:
@@ -38,9 +46,21 @@ def compute_score(
     if ev.hard_filter_failed:
         return 0
 
-    required = _fraction_bucket(
-        weights.required_skills, ev.required_skill_judgments, lambda j: j.present
-    )
+    # Required skills: core skills weigh CORE_WEIGHT× supporting ones, so
+    # missing the role's central skill dents the score far more than missing
+    # a secondary tool. Judgments are matched to the profile by skill text
+    # (tolerant of case and a copied "(core)" marker); unmatched text falls
+    # back to supporting weight.
+    if ev.required_skill_judgments:
+        core_lookup = {_norm(s.skill): s.core for s in profile.required_skills}
+        total = hits = 0
+        for j in ev.required_skill_judgments:
+            w = CORE_WEIGHT if core_lookup.get(_norm(j.skill), False) else 1
+            total += w
+            hits += w if j.present else 0
+        required = round(weights.required_skills * hits / total)
+    else:
+        required = weights.required_skills
     preferred = _fraction_bucket(
         weights.preferred_skills, ev.preferred_skill_judgments, lambda j: j.present
     )

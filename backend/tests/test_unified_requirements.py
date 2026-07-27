@@ -6,7 +6,7 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from ai_candidate_screening_outreach.db.models import UnifiedRequirements
+from ai_candidate_screening_outreach.db.models import RequiredSkill, UnifiedRequirements
 from ai_candidate_screening_outreach.pipeline.prompt_builder import (
     render_unified_requirements,
 )
@@ -15,7 +15,11 @@ from ai_candidate_screening_outreach.pipeline.prompt_builder import (
 def _sample() -> UnifiedRequirements:
     return UnifiedRequirements(
         summary="Onsite React Native role blending mobile and AI tooling.",
-        required_skills=["React Native", "TypeScript", "Prompt engineering"],
+        required_skills=[
+            RequiredSkill(skill="React Native", core=True),
+            RequiredSkill(skill="TypeScript", core=False),
+            RequiredSkill(skill="Prompt engineering", core=True),
+        ],
         preferred_skills=["Expo", "CI/CD"],
         min_years_experience="1",
         location="Thane, India; relocation acceptable",
@@ -50,7 +54,8 @@ def test_render_contains_all_sections_and_items():
         "Compensation Budget",
     ]:
         assert heading in text, f"missing section: {heading}"
-    assert "React Native" in text
+    assert "React Native (core)" in text
+    assert "TypeScript" in text and "TypeScript (core)" not in text
     assert "Willing to work onsite" in text
 
 

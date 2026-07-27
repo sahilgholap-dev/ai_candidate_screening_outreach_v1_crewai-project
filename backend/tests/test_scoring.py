@@ -9,6 +9,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 from ai_candidate_screening_outreach.db.models import (
     CandidateEvaluation,
     MustHaveJudgment,
+    RequiredSkill,
     SkillJudgment,
     UnifiedRequirements,
 )
@@ -117,6 +118,63 @@ def test_hard_filter_fail_scores_zero():
         required_skill_judgments=[SkillJudgment(skill="A", present=True)],
     )
     assert compute_score(ev, WEIGHTS, _profile()) == 0
+
+
+def test_core_skills_weigh_three_times_supporting():
+    profile = _profile(
+        required_skills=[
+            RequiredSkill(skill="React Native", core=True),
+            RequiredSkill(skill="GraphQL", core=False),
+            RequiredSkill(skill="Git", core=False),
+            RequiredSkill(skill="CI/CD", core=False),
+        ]
+    )
+    # missing ONLY the core skill: 40 * 3/(3+3) = 20 — half the bucket gone
+    ev = _ev(
+        required_skill_judgments=[
+            SkillJudgment(skill="React Native", present=False),
+            SkillJudgment(skill="GraphQL", present=True),
+            SkillJudgment(skill="Git", present=True),
+            SkillJudgment(skill="CI/CD", present=True),
+        ]
+    )
+    assert compute_score(ev, WEIGHTS, profile) == 20 + 20 + 20 + 10 + 10
+
+    # missing ONLY one supporting skill: 40 * 5/6 ≈ 33 — a small dent
+    ev2 = _ev(
+        required_skill_judgments=[
+            SkillJudgment(skill="React Native", present=True),
+            SkillJudgment(skill="GraphQL", present=False),
+            SkillJudgment(skill="Git", present=True),
+            SkillJudgment(skill="CI/CD", present=True),
+        ]
+    )
+    assert compute_score(ev2, WEIGHTS, profile) == 33 + 20 + 20 + 10 + 10
+
+
+def test_core_lookup_tolerates_case_and_core_suffix():
+    profile = _profile(
+        required_skills=[RequiredSkill(skill="React Native", core=True)]
+    )
+    # evaluator copied the rendered label verbatim, including the marker
+    ev = _ev(
+        required_skill_judgments=[
+            SkillJudgment(skill="react native (core)", present=False)
+        ]
+    )
+    # single core skill missing: bucket = 0
+    assert compute_score(ev, WEIGHTS, profile) == 0 + 20 + 20 + 10 + 10
+
+
+def test_judgments_without_profile_match_weigh_as_supporting():
+    # unknown skill text falls back to weight 1 — behaves like the old flat math
+    ev = _ev(
+        required_skill_judgments=[
+            SkillJudgment(skill="A", present=True),
+            SkillJudgment(skill="B", present=False),
+        ]
+    )
+    assert compute_score(ev, WEIGHTS, _profile()) == 20 + 20 + 20 + 10 + 10
 
 
 def test_score_is_deterministic_and_bounded():

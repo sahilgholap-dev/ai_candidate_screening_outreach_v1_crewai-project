@@ -92,14 +92,25 @@ class OutreachResults(BaseModel):
     drafts: List[OutreachDraft]
 
 
+class RequiredSkill(BaseModel):
+    skill: str = Field(description="The skill, short and concrete")
+    core: bool = Field(
+        default=False,
+        description="True when the skill is central to the role: in the job title, "
+        "described as the primary function, or in the recruiter's must-have skills. "
+        "Supporting tools and secondary skills are false.",
+    )
+
+
 class UnifiedRequirements(BaseModel):
     """Structured Stage 1 output. Constraining the profile to this schema (and
     rendering it deterministically) keeps the scoring rubric's inputs stable
     across runs — free-form prose drifted run-to-run and swung scores."""
 
     summary: str = Field(description="2-3 plain-language sentences describing the role")
-    required_skills: List[str] = Field(
-        default_factory=list, description="Non-negotiable technical and soft skills"
+    required_skills: List[RequiredSkill] = Field(
+        default_factory=list,
+        description="Non-negotiable technical and soft skills, each marked core or supporting",
     )
     preferred_skills: List[str] = Field(
         default_factory=list, description="Bonus / nice-to-have skills"
