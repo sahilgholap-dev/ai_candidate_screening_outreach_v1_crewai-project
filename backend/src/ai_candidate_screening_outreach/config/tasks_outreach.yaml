@@ -1,0 +1,17 @@
+draft_candidate_outreach_messages:
+  description: "Draft personalized outreach messages for the shortlisted candidate(s)\
+    \ below.\n\nCompany context for outreach (use it — never invent placeholders):\n\
+    - Company: {company_name}\n- About the company: {company_pitch}\n- Sign every email\
+    \ exactly with this signature block: {recruiter_signature}\n- Tone: {tone_notes}\n\
+    \nRole summary:\n{role_summary}\n\nShortlisted candidate(s):\n{shortlisted_block}\n\
+    \nFor EACH candidate above draft:\n- **Email**: A short, warm, personalized email\
+    \ (150-200 words) with a specific subject line. Reference their specific background\
+    \ and the company pitch. Do NOT use bracketed placeholders like [Recruiter Name]\
+    \ — use the signature block provided above. Begin the email body with the line\
+    \ \"DRAFT — FOR HUMAN REVIEW BEFORE SENDING\".\n- **SMS**: A brief SMS version\
+    \ (under 160 chars) introducing the opportunity.\n\nThe candidate_id field MUST\
+    \ be the numeric Candidate ID shown for each candidate — never a sequential position\
+    \ number."
+  expected_output: 'A structured response with one draft entry per shortlisted candidate:
+    candidate_id, email_draft, sms_draft.'
+  agent: talent_outreach_specialist

@@ -23,12 +23,47 @@ def utcnow():
 
 
 # --- Pydantic Schemas for CrewAI Output ---
+class SkillJudgment(BaseModel):
+    """Binary fact-check: is this skill evidenced on the resume? The LLM only
+    answers yes/no per item; all point arithmetic happens in code."""
+
+    skill: str = Field(description="The skill exactly as listed in the Unified Requirements Profile")
+    present: bool = Field(description="True if the skill (or a clear equivalent) appears on the resume")
+
+
+class MustHaveJudgment(BaseModel):
+    item: str = Field(description="The must-have exactly as listed in the Unified Requirements Profile")
+    status: str = Field(
+        description="'met' if the resume evidences it, 'unmet' if the resume explicitly contradicts it, 'unknown' if the resume is silent"
+    )
+
+
 class CandidateEvaluation(BaseModel):
     candidate_id: int = Field(description="The numeric Candidate ID provided at the top of the resume text")
     name: str = Field(description="The full name of the candidate")
-    score: int = Field(description="The overall evaluation score out of 100")
-    recommendation: str = Field(description="One of: 'Shortlist', 'Maybe', or 'Reject'")
+    score: int = Field(default=0, description="Leave 0 — the system computes the score from the judgments")
+    recommendation: str = Field(default="", description="Leave empty — the system computes the recommendation")
     hard_filter_failed: bool = Field(description="True if the candidate failed a hard filter")
+    required_skill_judgments: List[SkillJudgment] = Field(
+        default_factory=list,
+        description="One judgment per Required Skill in the Unified Requirements Profile, in order",
+    )
+    preferred_skill_judgments: List[SkillJudgment] = Field(
+        default_factory=list,
+        description="One judgment per Preferred / Nice-to-Have skill, in order",
+    )
+    must_have_judgments: List[MustHaveJudgment] = Field(
+        default_factory=list,
+        description="One judgment per Must-Have item, in order",
+    )
+    estimated_total_years: Optional[float] = Field(
+        None,
+        description="Total career years from work-history dates; null if the resume gives no duration evidence",
+    )
+    education_status: str = Field(
+        default="unknown",
+        description="'met' if the education requirement is satisfied (or equivalent experience where allowed), 'unmet' if clearly not, 'unknown' if the resume is silent or no requirement exists",
+    )
     key_strengths: List[str] = Field(description="List of key strengths from the resume")
     key_gaps: List[str] = Field(description="List of key gaps or missing requirements")
     rationale: str = Field(description="A concise rationale for the scoring and recommendation")
@@ -45,6 +80,16 @@ class CandidateEvaluation(BaseModel):
 
 class CampaignResults(BaseModel):
     evaluations: List[CandidateEvaluation]
+
+
+class OutreachDraft(BaseModel):
+    candidate_id: int = Field(description="The numeric Candidate ID of the shortlisted candidate")
+    email_draft: str = Field(description="The drafted outreach email")
+    sms_draft: str = Field(description="The drafted outreach SMS (under 160 chars)")
+
+
+class OutreachResults(BaseModel):
+    drafts: List[OutreachDraft]
 
 
 class UnifiedRequirements(BaseModel):

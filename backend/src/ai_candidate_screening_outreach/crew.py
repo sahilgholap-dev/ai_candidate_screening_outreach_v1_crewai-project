@@ -1,7 +1,11 @@
 from crewai import LLM, Agent, Crew, Process, Task
 from crewai.project import CrewBase, agent, crew, task
 
-from ai_candidate_screening_outreach.db.models import CampaignResults, UnifiedRequirements
+from ai_candidate_screening_outreach.db.models import (
+    CampaignResults,
+    OutreachResults,
+    UnifiedRequirements,
+)
 
 MODEL = "anthropic/claude-sonnet-4-6"
 
@@ -51,8 +55,9 @@ class RequirementsCrew:
 
 @CrewBase
 class ScreeningCrew:
-    """Stages 2–4 — runs per chunk of resumes: parse, evaluate against the
-    unified requirements, and draft outreach for shortlisted candidates."""
+    """Stages 2–3 — runs per chunk of resumes: parse, then judge against the
+    unified requirements. The evaluator emits binary judgments only; scores,
+    recommendations, and the shortlist are computed in code (scoring.py)."""
 
     agents_config = "config/agents_screening.yaml"
     tasks_config = "config/tasks_screening.yaml"
@@ -75,6 +80,35 @@ class ScreeningCrew:
             llm=_llm(temperature=0.0),
         )
 
+    @task
+    def parse_candidate_resumes(self) -> Task:
+        return Task(config=self.tasks_config["parse_candidate_resumes"])
+
+    @task
+    def evaluate_and_score_candidates(self) -> Task:
+        return Task(
+            config=self.tasks_config["evaluate_and_score_candidates"],
+            output_pydantic=CampaignResults,
+        )
+
+    @crew
+    def crew(self) -> Crew:
+        return Crew(
+            agents=self.agents,
+            tasks=self.tasks,
+            process=Process.sequential,
+            verbose=True,
+        )
+
+
+@CrewBase
+class OutreachCrew:
+    """Stage 4 — runs only for candidates code has shortlisted: drafts the
+    human-reviewed email/SMS outreach."""
+
+    agents_config = "config/agents_screening.yaml"
+    tasks_config = "config/tasks_outreach.yaml"
+
     @agent
     def talent_outreach_specialist(self) -> Agent:
         return Agent(
@@ -85,18 +119,10 @@ class ScreeningCrew:
         )
 
     @task
-    def parse_candidate_resumes(self) -> Task:
-        return Task(config=self.tasks_config["parse_candidate_resumes"])
-
-    @task
-    def evaluate_and_score_candidates(self) -> Task:
-        return Task(config=self.tasks_config["evaluate_and_score_candidates"])
-
-    @task
     def draft_candidate_outreach_messages(self) -> Task:
         return Task(
             config=self.tasks_config["draft_candidate_outreach_messages"],
-            output_pydantic=CampaignResults,
+            output_pydantic=OutreachResults,
         )
 
     @crew

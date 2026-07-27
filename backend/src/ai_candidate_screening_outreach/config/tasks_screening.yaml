@@ -58,16 +58,13 @@ parse_candidate_resumes:
   agent: resume_data_extraction_specialist
 evaluate_and_score_candidates:
   description: 'Using the Unified Requirements Profile below and all Candidate Profiles
-    from context, evaluate every candidate objectively and produce a scored shortlist.
+    from context, judge every candidate objectively. You produce factual judgments
+    only — the system computes all scores and recommendations from them.
 
 
     Unified Requirements Profile:
 
     {unified_requirements}
-
-
-    Shortlist threshold: {threshold} (at or above = "Shortlist"; within {maybe_band}
-    points below = "Maybe"; below that = "Reject").
 
 
     ---
@@ -77,8 +74,8 @@ evaluate_and_score_candidates:
 
     List every candidate you see with their Candidate ID. If the same person appears
     more than once (same name/email), keep the entry with the most information, discard
-    all others, and note the merge. The final ranked table must have EXACTLY ONE ROW
-    per unique person. Count and state the unique candidate count before proceeding.
+    all others, and note the merge. Your output must have EXACTLY ONE evaluation per
+    unique person.
 
 
     ---
@@ -106,69 +103,22 @@ evaluate_and_score_candidates:
     ---
 
 
-    **STEP 3 — Self-check (mandatory before writing any output)**
+    **Self-check (mandatory before writing output):**
 
+    A. Every non-hard-filtered candidate has exactly one judgment entry per Required
+    Skill, per Preferred Skill, and per Must-Have listed in the profile — none skipped,
+    none invented, item text copied exactly.
 
-    **Score finality rule:** once a candidate''s Step 2 table passes the cap check
-    and the arithmetic check, that TOTAL is FINAL. The ranked table and every later
-    section must transcribe it UNCHANGED. Re-audits may only correct a cap violation
-    or an arithmetic error in the table itself — never re-judge, re-weigh, or revise
-    a score after the table is written. Do not produce "revised" tables; write the
-    ranked table exactly once, from the final Step 2 totals.
+    B. No skill is judged absent (`present` = false) if it appears anywhere on the
+    candidate''s resume.
 
+    C. No must-have is `unmet` without explicit contradicting resume evidence.
 
-    Go through EVERY non-hard-filtered candidate and verify ALL of the following.
-    Fix any violation before proceeding:
+    D. Hard-filtered candidates: hard_filter_failed = true and one rationale line
+    naming the failed filter and the resume evidence; no judgments needed.
 
-
-    A. **Cap check**: Every bucket value ≤ its cap. Correct any that exceed it.
-
-    B. **Arithmetic check**: B1 + B2 + B3 + B4 + B5 must equal the TOTAL cell exactly.
-    Recompute if needed.
-
-    C. **Table consistency**: The score in the ranked table must equal the TOTAL from
-    the scoring notes.
-
-    D. **Hard Filter column consistency**: Hard Filter Failed = Y ↔ Recommendation
-    = "Reject (Hard Filter)" and Score = 0. Hard Filter Failed = N ↔ Recommendation
-    is one of Shortlist / Maybe / Reject only.
-
-    E. **Sort order**: Ranked table sorted strictly by Score descending. Ranks are
-    sequential integers starting at 1 with no gaps.
-
-    F. **Key Gaps accuracy**: Never list a skill as a gap if it appears on the candidate''s
-    resume. Never mention missing education when education is "Not specified". Never
-    mention insufficient experience when no minimum is specified.
-
-    G. **Shortlist section**: Contains ONLY candidates whose Recommendation = "Shortlist".
-
-    H. **One row per candidate**: Row count equals the unique candidate count from
-    Step 0.
-
-    I. **Scoring Notes completeness**: Each non-hard-filtered candidate has exactly
-    ONE scoring table; hard-filtered candidates have exactly ONE line (no scoring
-    table).
-
-    J. **Must-Haves self-audit**: If any Must-Haves justification mentions portfolio,
-    shipping history, degree, experience level, or a criterion not in the Unified
-    Requirements must-have list → set that deduction to 0 and recalculate.
-
-    K. **UNKNOWN audit**: Every hard filter that resolved UNKNOWN for a candidate
-    appears in that candidate''s needs_info list, and that candidate was scored normally.
-
-
-    ---
-
-
-    **STEP 4 — Recommendation**
-
-    Apply threshold to all non-hard-filtered candidates:
-
-    - Score ≥ {threshold} → Shortlist
-
-    - Score ≥ {threshold} − {maybe_band} → Maybe
-
-    - Score < {threshold} − {maybe_band} → Reject
+    E. Every UNKNOWN hard filter and every `unknown` must-have appears in that
+    candidate''s needs_info.
 
 
     ---
@@ -181,60 +131,12 @@ evaluate_and_score_candidates:
     attribute. (The single exception: when a lawful gender-eligibility hard filter
     is explicitly listed in Step 1, apply it exactly as written there — as an eligibility
     gate only, never as a scoring input.)'
-  expected_output: 'A markdown report with four sections:
-
-
-    1. **Deduplication Note** — Duplicates found and how handled. Total unique candidate
-    count, matching the ranked table row count.
-
-
-    2. **Ranked Candidate Table** — Sorted strictly by Score descending. Columns:
-    Rank | Candidate ID | Name | Score | Recommendation | Hard Filter Failed (Y/N)
-    | Needs Info | Flags | Key Strengths | Key Gaps.
-
-
-    3. **Shortlist** — ONLY candidates with Recommendation = "Shortlist", each with
-    a one-line rationale grounded in their resume. If none reach the threshold, write
-    "No candidates met the shortlist threshold."
-
-
-    4. **Scoring Notes** — For every non-hard-filtered candidate: exactly one filled
-    Step 2 table with explicit arithmetic confirmed. For hard-filtered candidates:
-    exactly one line naming the failed filter and the resume evidence.'
+  expected_output: 'A structured response with one evaluation per unique candidate:
+    candidate_id (the provided numeric ID, never renumbered), name, hard_filter_failed,
+    required_skill_judgments, preferred_skill_judgments, must_have_judgments,
+    estimated_total_years, education_status, key_strengths, key_gaps, rationale,
+    needs_info, flags. Leave score as 0 and recommendation empty — the system
+    computes both. Leave email_draft and sms_draft null.'
   agent: candidate_assessment_expert
   context:
   - parse_candidate_resumes
-draft_candidate_outreach_messages:
-  description: "Compile the evaluation results from the previous step and draft personalized\
-    \ outreach messages for every candidate whose recommendation is \"Shortlist\"\
-    .\n\nCompany context for outreach (use it — never invent placeholders):\n- Company:\
-    \ {company_name}\n- About the company: {company_pitch}\n- Sign every email exactly\
-    \ with this signature block: {recruiter_signature}\n- Tone: {tone_notes}\n\n1.\
-    \ For ALL candidates, extract their evaluation details (score, recommendation,\
-    \ hard_filter_failed, key_strengths, key_gaps, rationale, needs_info, flags) from\
-    \ the context. The candidate_id field MUST be the numeric Candidate ID shown in\
-    \ the Candidate Profiles (e.g. \"Candidate 68\" -> candidate_id 68) — never a\
-    \ sequential position number.\n2. For ONLY the shortlisted candidates, draft outreach\
-    \ messages:\n   - **Email**: A short, warm, personalized email (150-200 words)\
-    \ with a specific subject line. Reference their specific background and the company\
-    \ pitch. Do NOT use bracketed placeholders like [Recruiter Name] — use the signature\
-    \ block provided above. Begin the email body with the line \"DRAFT — FOR HUMAN\
-    \ REVIEW BEFORE SENDING\".\n   - **SMS**: A brief SMS version (under 160 chars)\
-    \ introducing the opportunity.\n3. Ensure the final output includes ALL candidates\
-    \ (both shortlisted and rejected), but only the shortlisted ones have email and\
-    \ SMS drafts."
-  expected_output: 'A structured JSON response containing the evaluations for all
-    candidates.
-
-    For each candidate include: candidate_id, name, score, recommendation, hard_filter_failed
-    boolean,
-
-    key_strengths, key_gaps, rationale, needs_info (list of unverifiable hard filters),
-
-    flags (list such as over_budget/overqualified/employment_gap), email_draft, and
-    sms_draft.
-
-    Ensure the schema strictly matches the requested format.'
-  agent: talent_outreach_specialist
-  context:
-  - evaluate_and_score_candidates

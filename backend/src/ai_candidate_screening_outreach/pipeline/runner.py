@@ -20,10 +20,11 @@ import shutil
 import time
 import traceback
 
-from ..crew import RequirementsCrew, ScreeningCrew
+from ..crew import OutreachCrew, RequirementsCrew, ScreeningCrew
 from ..db.database import SessionLocal
-from ..db.models import Campaign, Candidate, Company, utcnow
+from ..db.models import Campaign, Candidate, Company, UnifiedRequirements, utcnow
 from ..schemas.requirements import RequirementsProfileV1
+from .scoring import compute_score
 from ..utils.parser import (
     extract_text_from_docx,
     extract_text_from_pdf,
@@ -118,6 +119,20 @@ def _apply_evaluation(candidate: Candidate, ev, threshold: float, maybe_band: in
     candidate.sms_draft = ev.sms_draft
 
 
+def _shortlisted_block(candidates: list[Candidate]) -> str:
+    """Plain-text summary of shortlisted candidates for the outreach prompt."""
+    blocks = []
+    for c in candidates:
+        strengths = ", ".join(c.get_strengths()) or "(none recorded)"
+        blocks.append(
+            f"Candidate ID: {c.id}\n"
+            f"Name: {c.name or '(name not extracted)'}\n"
+            f"Key strengths: {strengths}\n"
+            f"Evaluation rationale: {c.rationale or '(none)'}"
+        )
+    return "\n\n".join(blocks)
+
+
 def _usage_dict(token_usage) -> dict:
     if token_usage is None:
         return {}
@@ -206,10 +221,10 @@ def run_campaign(campaign_id: int) -> None:
         )
         # Structured output rendered to fixed-format text: the rubric Stage 2
         # scores against must not vary in shape or verbosity run-to-run.
-        if stage1.pydantic is not None:
-            unified_requirements = render_unified_requirements(stage1.pydantic)
-        else:
-            unified_requirements = stage1.raw
+        unified_profile: UnifiedRequirements = stage1.pydantic or UnifiedRequirements(
+            summary=stage1.raw[:2000]
+        )
+        unified_requirements = render_unified_requirements(unified_profile)
         _add_usage(total_usage, _usage_dict(stage1.token_usage))
         _write(os.path.join(output_dir, "requirements.md"), unified_requirements)
         final_content += (
@@ -230,12 +245,9 @@ def run_campaign(campaign_id: int) -> None:
         base_inputs = {
             "region_rules": region_rules,
             "unified_requirements": unified_requirements,
-            "threshold": str(campaign.threshold),
-            "maybe_band": str(profile.maybe_band if profile else 10),
             "hard_filter_rules": build_hard_filter_rules(profile),
             "scoring_rules": build_scoring_rules(weights),
             "extra_rules": build_extra_rules(profile),
-            **build_outreach_context(company, campaign),
         }
 
         failed_chunks = 0
@@ -270,15 +282,21 @@ def run_campaign(campaign_id: int) -> None:
 
             _add_usage(total_usage, _usage_dict(result.token_usage))
 
-            # Map evaluations back: by Candidate ID, then order-based fallback
+            # Map evaluations back: by Candidate ID, then order-based fallback.
+            # Scores are computed in code from the evaluator's binary judgments
+            # (scoring.py) — the LLM never does arithmetic.
             maybe_band = profile.maybe_band if profile else 10
+            applied: list[Candidate] = []
             if result.pydantic and hasattr(result.pydantic, "evaluations"):
+                for ev in result.pydantic.evaluations:
+                    ev.score = compute_score(ev, weights, unified_profile)
                 chunk_by_id = {c.id: c for c in chunk}
                 unmatched = []
                 for ev in result.pydantic.evaluations:
                     candidate = chunk_by_id.pop(ev.candidate_id, None)
                     if candidate:
                         _apply_evaluation(candidate, ev, campaign.threshold, maybe_band)
+                        applied.append(candidate)
                     else:
                         unmatched.append(ev)
                 leftover = sorted(chunk_by_id.values(), key=lambda c: c.id)
@@ -286,15 +304,49 @@ def run_campaign(campaign_id: int) -> None:
                     unmatched.sort(key=lambda e: e.candidate_id)
                     for candidate, ev in zip(leftover, unmatched):
                         _apply_evaluation(candidate, ev, campaign.threshold, maybe_band)
+                        applied.append(candidate)
                 elif unmatched:
                     print(
                         f"Warning: {len(unmatched)} evaluation(s) unmatched in campaign {campaign_id} chunk {chunk_no}"
                     )
             db.commit()
 
+            # Outreach drafting only for candidates code shortlisted. A failed
+            # outreach call never fails the chunk — drafts just stay empty.
+            shortlisted = [c for c in applied if c.recommendation == "Shortlist"]
+            outreach_raw = ""
+            if shortlisted:
+                try:
+                    outreach = OutreachCrew().crew().kickoff(
+                        inputs={
+                            "role_summary": unified_profile.summary,
+                            "shortlisted_block": _shortlisted_block(shortlisted),
+                            **build_outreach_context(company, campaign),
+                        }
+                    )
+                    _add_usage(total_usage, _usage_dict(outreach.token_usage))
+                    outreach_raw = outreach.raw or ""
+                    drafts = (
+                        {d.candidate_id: d for d in outreach.pydantic.drafts}
+                        if outreach.pydantic
+                        else {}
+                    )
+                    for candidate in shortlisted:
+                        draft = drafts.get(candidate.id)
+                        if draft:
+                            candidate.email_draft = draft.email_draft
+                            candidate.sms_draft = draft.sms_draft
+                    db.commit()
+                except Exception:
+                    print(
+                        f"[pipeline] campaign {campaign_id} chunk {chunk_no} outreach failed:\n"
+                        f"{traceback.format_exc()}",
+                        flush=True,
+                    )
+
             # Archive stage outputs for this chunk (written directly — no CWD files)
             outputs = list(result.tasks_output or [])
-            stage_files = ["parsed.md", "report.md", "outreach.md"]
+            stage_files = ["parsed.md", "report.md"]
             final_content += f"# Batch {chunk_no}\n\n"
             for task_output, filename in zip(outputs, stage_files):
                 _write(os.path.join(chunk_dir, filename), task_output.raw)
@@ -302,6 +354,8 @@ def run_campaign(campaign_id: int) -> None:
                     final_content += (
                         f"## Batch {chunk_no} Evaluation Report\n\n{task_output.raw}\n\n---\n\n"
                     )
+            if outreach_raw:
+                _write(os.path.join(chunk_dir, "outreach.md"), outreach_raw)
 
             if i + BATCH_SIZE < len(to_process):
                 time.sleep(CHUNK_SLEEP_SECONDS)

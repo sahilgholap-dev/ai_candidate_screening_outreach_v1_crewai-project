@@ -373,46 +373,50 @@ def build_hard_filter_rules(profile: RequirementsProfileV1 | None) -> str:
 # ---------------------------------------------------------------- scoring
 
 def build_scoring_rules(weights: CustomWeights, education_neutral_note: bool = True) -> str:
-    w = weights
-    total_check = f"{w.required_skills} + {w.must_haves} + {w.experience} + {w.education} + {w.preferred_skills}"
-    return f"""**STEP 2 — Score each non-FAIL candidate using this exact table:**
+    """Judgment instructions for the evaluator. The LLM answers only factual
+    yes/no and met/unmet/unknown questions per rubric item; scoring.py turns
+    the judgments into points. (weights kept in the signature for callers,
+    but the LLM never sees or computes numbers.)"""
+    return """**STEP 2 — Judge each non-FAIL candidate item by item. You do NOT compute scores.**
 
-| Bucket | Cap | Score Awarded | Justification |
-|---|---|---|---|
-| Required Skills match | {w.required_skills} | ? | List each matched/unmatched required skill |
-| Must-Haves met | {w.must_haves} | ? | List each listed must-have and whether met |
-| Years of experience quality | {w.experience} | ? | See rule below |
-| Education match | {w.education} | ? | See rule below |
-| Preferred / Nice-to-Have skills | {w.preferred_skills} | ? | List matched preferred skills |
-| **TOTAL** | **100** | **?** | **Write: B1 + B2 + B3 + B4 + B5 = Total** |
+The system computes all points and the final recommendation from your judgments.
+Your only job is answering factual questions about what is on each resume.
 
-**Bucket rules — every rule is absolute:**
+For every non-hard-filtered candidate produce:
 
-*Required Skills (cap {w.required_skills}):*
-- If a skill or tool appears on the candidate's resume, it MUST be counted as present. Never mark a skill as missing if it is listed on their resume.
-- Score awarded ≤ {w.required_skills}. If you write a number above {w.required_skills}, replace it with {w.required_skills} before continuing.
+1. **required_skill_judgments** — exactly one entry per item under "Required Skills"
+   in the Unified Requirements Profile, in the same order, with the item text copied
+   exactly. `present` = true if the skill (or a clear equivalent, e.g. "RN" for React
+   Native) appears anywhere on the resume — a skill listed on the resume ALWAYS counts
+   as present. `present` = false ONLY when the skill is absent from the resume entirely.
 
-*Must-Haves (cap {w.must_haves}) — READ TWICE BEFORE SCORING:*
-- This bucket covers ONLY criteria explicitly labeled as must-haves in the Unified Requirements Profile — typically location/relocation, work authorization, and availability items.
-- BANNED from this bucket (these NEVER reduce Must-Have points): portfolio quality, shipping history, degree/education level, years of experience, any criterion marked "Not specified", any criterion you inferred.
-- A candidate who meets all listed must-haves scores {w.must_haves}/{w.must_haves}.
-- Score awarded ≤ {w.must_haves}.
+2. **preferred_skill_judgments** — same rules, one entry per "Preferred / Nice-to-Have
+   Skills" item.
 
-*Years of Experience (cap {w.experience}) — READ TWICE BEFORE SCORING:*
-- If no numeric minimum or target range is specified → type exactly "{w.experience}" for EVERY candidate. Do not scale. Do not assess years.
-- If a minimum IS specified → award {w.experience} for meeting/exceeding it, scale proportionally for falling short.
-- If a soft target range is specified → candidates within range get {w.experience}; far above range: award full points but add 'overqualified' to their flags list (never deduct for being above range).
-- Score awarded ≤ {w.experience}.
+3. **must_have_judgments** — one entry per "Must-Haves" item: `met` when the resume
+   evidences it, `unmet` ONLY on explicit contradicting evidence, `unknown` when the
+   resume is silent (silence is NEVER unmet — resumes rarely state notice periods,
+   onsite willingness, or authorization).
 
-*Education (cap {w.education}) — READ TWICE BEFORE SCORING:*
-- If education is "Not specified" in the Unified Requirements → type exactly "{w.education}" for EVERY candidate. Never penalize self-taught candidates.{" " if education_neutral_note else ""}
-- If a degree/field IS required → score accordingly (equivalent experience counts when allowed).
-- Score awarded ≤ {w.education}.
+4. **estimated_total_years** — total career years calculated from work-history dates;
+   null when the resume gives no dates or duration evidence. Never guess.
 
-*Preferred / Nice-to-Have skills (cap {w.preferred_skills}):*
-- Score awarded ≤ {w.preferred_skills}.
+5. **education_status** — `met` when the profile's Education Requirements are satisfied
+   (equivalent experience counts where the profile allows it), `unmet` when education
+   is listed and clearly does not meet the bar, `unknown` when the resume is silent or
+   the profile says "Not specified".
 
-**Arithmetic check:** B1 + B2 + B3 + B4 + B5 = Total, where the caps are {total_check} = 100."""
+6. **key_strengths / key_gaps / rationale** — qualitative and grounded in the resume.
+   Never list a skill as a gap when it appears on the resume. Never mention missing
+   education when the profile says "Not specified". Never mention insufficient
+   experience when no numeric minimum is specified.
+
+7. **needs_info** — every hard filter that resolved UNKNOWN plus every must-have
+   judged `unknown`.
+
+8. **flags** — per the flag rules only.
+
+Leave `score` as 0 and `recommendation` as "" — the system fills both."""
 
 
 # ---------------------------------------------------------------- extra rules
