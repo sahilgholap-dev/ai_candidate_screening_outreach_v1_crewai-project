@@ -38,24 +38,26 @@ def _fraction_bucket(cap: int, judgments, is_hit) -> int:
     return round(cap * hits / len(judgments))
 
 
-def compute_score(
+def _core_lookup(profile: UnifiedRequirements) -> dict[str, bool]:
+    return {_norm(s.skill): s.core for s in profile.required_skills}
+
+
+def _bucket_points(
     ev: CandidateEvaluation,
     weights: CustomWeights,
     profile: UnifiedRequirements,
-) -> int:
-    if ev.hard_filter_failed:
-        return 0
-
+) -> dict[str, int]:
+    """Per-bucket points for a non-hard-filtered candidate."""
     # Required skills: core skills weigh CORE_WEIGHT× supporting ones, so
     # missing the role's central skill dents the score far more than missing
     # a secondary tool. Judgments are matched to the profile by skill text
     # (tolerant of case and a copied "(core)" marker); unmatched text falls
     # back to supporting weight.
     if ev.required_skill_judgments:
-        core_lookup = {_norm(s.skill): s.core for s in profile.required_skills}
+        core = _core_lookup(profile)
         total = hits = 0
         for j in ev.required_skill_judgments:
-            w = CORE_WEIGHT if core_lookup.get(_norm(j.skill), False) else 1
+            w = CORE_WEIGHT if core.get(_norm(j.skill), False) else 1
             total += w
             hits += w if j.present else 0
         required = round(weights.required_skills * hits / total)
@@ -83,5 +85,62 @@ def compute_score(
     else:
         education = weights.education
 
-    total = required + must_haves + experience + education + preferred
+    return {
+        "required_skills": required,
+        "must_haves": must_haves,
+        "experience": experience,
+        "education": education,
+        "preferred_skills": preferred,
+    }
+
+
+def compute_score(
+    ev: CandidateEvaluation,
+    weights: CustomWeights,
+    profile: UnifiedRequirements,
+) -> int:
+    if ev.hard_filter_failed:
+        return 0
+    total = sum(_bucket_points(ev, weights, profile).values())
     return max(0, min(100, total))
+
+
+def judgment_record(
+    ev: CandidateEvaluation,
+    weights: CustomWeights,
+    profile: UnifiedRequirements,
+) -> dict:
+    """The stored tick-sheet: every judgment plus the per-bucket points, so
+    the UI can show exactly where a score came from."""
+    core = _core_lookup(profile)
+    points = _bucket_points(ev, weights, profile)
+    caps = {
+        "required_skills": weights.required_skills,
+        "must_haves": weights.must_haves,
+        "experience": weights.experience,
+        "education": weights.education,
+        "preferred_skills": weights.preferred_skills,
+    }
+    return {
+        "required_skills": [
+            {
+                "skill": j.skill,
+                "present": j.present,
+                "core": core.get(_norm(j.skill), False),
+            }
+            for j in ev.required_skill_judgments
+        ],
+        "preferred_skills": [
+            {"skill": j.skill, "present": j.present}
+            for j in ev.preferred_skill_judgments
+        ],
+        "must_haves": [
+            {"item": j.item, "status": j.status} for j in ev.must_have_judgments
+        ],
+        "estimated_total_years": ev.estimated_total_years,
+        "education_status": ev.education_status,
+        "breakdown": {
+            "buckets": {k: {"points": v, "cap": caps[k]} for k, v in points.items()},
+            "total": compute_score(ev, weights, profile),
+        },
+    }

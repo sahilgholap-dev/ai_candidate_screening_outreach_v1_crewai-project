@@ -24,7 +24,7 @@ from ..crew import OutreachCrew, RequirementsCrew, ScreeningCrew
 from ..db.database import SessionLocal
 from ..db.models import Campaign, Candidate, Company, UnifiedRequirements, utcnow
 from ..schemas.requirements import RequirementsProfileV1
-from .scoring import compute_score
+from .scoring import compute_score, judgment_record
 from ..utils.parser import (
     extract_text_from_docx,
     extract_text_from_pdf,
@@ -104,8 +104,15 @@ def _final_recommendation(ev, threshold: float, maybe_band: int) -> tuple[int, s
     return score, "Reject"
 
 
-def _apply_evaluation(candidate: Candidate, ev, threshold: float, maybe_band: int) -> None:
+def _apply_evaluation(
+    candidate: Candidate,
+    ev,
+    threshold: float,
+    maybe_band: int,
+    record: dict | None = None,
+) -> None:
     score, recommendation = _final_recommendation(ev, threshold, maybe_band)
+    candidate.judgments = record
     candidate.name = ev.name
     candidate.score = score
     candidate.recommendation = recommendation
@@ -310,7 +317,13 @@ def run_campaign(campaign_id: int) -> None:
                 for ev in result.pydantic.evaluations:
                     candidate = chunk_by_id.pop(ev.candidate_id, None)
                     if candidate:
-                        _apply_evaluation(candidate, ev, campaign.threshold, maybe_band)
+                        _apply_evaluation(
+                            candidate,
+                            ev,
+                            campaign.threshold,
+                            maybe_band,
+                            record=judgment_record(ev, weights, unified_profile),
+                        )
                         applied.append(candidate)
                     else:
                         unmatched.append(ev)
@@ -318,7 +331,13 @@ def run_campaign(campaign_id: int) -> None:
                 if unmatched and len(unmatched) == len(leftover):
                     unmatched.sort(key=lambda e: e.candidate_id)
                     for candidate, ev in zip(leftover, unmatched):
-                        _apply_evaluation(candidate, ev, campaign.threshold, maybe_band)
+                        _apply_evaluation(
+                            candidate,
+                            ev,
+                            campaign.threshold,
+                            maybe_band,
+                            record=judgment_record(ev, weights, unified_profile),
+                        )
                         applied.append(candidate)
                 elif unmatched:
                     print(

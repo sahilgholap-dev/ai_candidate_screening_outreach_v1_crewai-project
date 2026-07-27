@@ -12,6 +12,18 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
 
+type Judgments = {
+  required_skills: { skill: string; present: boolean; core: boolean }[];
+  preferred_skills: { skill: string; present: boolean }[];
+  must_haves: { item: string; status: string }[];
+  estimated_total_years: number | null;
+  education_status: string;
+  breakdown: {
+    buckets: Record<string, { points: number; cap: number }>;
+    total: number;
+  } | null;
+};
+
 type CandidateRow = {
   id: number;
   name: string | null;
@@ -27,6 +39,7 @@ type CandidateRow = {
   email_draft: string | null;
   sms_draft: string | null;
   outreach_approved: boolean;
+  judgments: Judgments | null;
 };
 
 type CampaignDetail = {
@@ -154,6 +167,124 @@ function OutreachEditor({
   );
 }
 
+const BUCKET_LABELS: Record<string, string> = {
+  required_skills: "Required skills",
+  must_haves: "Must-haves",
+  experience: "Experience",
+  education: "Education",
+  preferred_skills: "Preferred skills",
+};
+
+function Tick({ ok }: { ok: boolean }) {
+  return (
+    <span className={ok ? "text-verdict-pass" : "text-verdict-fail"}>
+      {ok ? "✓" : "✗"}
+    </span>
+  );
+}
+
+function TickSheet({ judgments }: { judgments: Judgments }) {
+  const buckets = judgments.breakdown?.buckets;
+  return (
+    <div className="space-y-4">
+      {buckets && (
+        <div>
+          <h4 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Score breakdown
+          </h4>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-1 sm:grid-cols-3">
+            {Object.entries(BUCKET_LABELS).map(([key, label]) => {
+              const b = buckets[key];
+              if (!b) return null;
+              return (
+                <div key={key} className="flex items-baseline justify-between gap-2 text-sm">
+                  <span className="text-muted-foreground">{label}</span>
+                  <span className="data-value font-medium">
+                    {b.points}/{b.cap}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      {judgments.required_skills.length > 0 && (
+        <div>
+          <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Required skills — on resume?
+          </h4>
+          <ul className="grid gap-x-6 gap-y-0.5 text-sm sm:grid-cols-2">
+            {judgments.required_skills.map((s, i) => (
+              <li key={i} className="flex items-start gap-1.5">
+                <Tick ok={s.present} />
+                <span className={s.present ? "" : "text-muted-foreground"}>
+                  {s.skill}
+                  {s.core && (
+                    <span className="ml-1 rounded bg-primary/10 px-1 text-[10px] font-semibold uppercase text-primary">
+                      core
+                    </span>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {judgments.must_haves.length > 0 && (
+        <div>
+          <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Must-haves
+          </h4>
+          <ul className="space-y-0.5 text-sm">
+            {judgments.must_haves.map((m, i) => (
+              <li key={i} className="flex items-start gap-1.5">
+                {m.status === "unmet" ? (
+                  <Tick ok={false} />
+                ) : m.status === "met" ? (
+                  <Tick ok={true} />
+                ) : (
+                  <span className="text-verdict-hold">?</span>
+                )}
+                <span className={m.status === "met" ? "" : "text-muted-foreground"}>
+                  {m.item}
+                  {m.status === "unknown" && " (not stated on resume)"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {judgments.preferred_skills.length > 0 && (
+        <div>
+          <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Preferred skills
+          </h4>
+          <ul className="grid gap-x-6 gap-y-0.5 text-sm sm:grid-cols-2">
+            {judgments.preferred_skills.map((s, i) => (
+              <li key={i} className="flex items-start gap-1.5">
+                <Tick ok={s.present} />
+                <span className={s.present ? "" : "text-muted-foreground"}>
+                  {s.skill}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <p className="text-xs text-muted-foreground">
+        Experience:{" "}
+        <span className="data-value">
+          {judgments.estimated_total_years != null
+            ? `~${judgments.estimated_total_years} yrs from work history`
+            : "no duration evidence on resume"}
+        </span>
+        {" · "}Education requirement:{" "}
+        <span className="data-value">{judgments.education_status}</span>
+      </p>
+    </div>
+  );
+}
+
 function CandidateDetail({
   campaignId,
   candidate,
@@ -169,7 +300,11 @@ function CandidateDetail({
     .includes("shortlist");
 
   return (
-    <div className="grid gap-6 border-t bg-muted/40 p-4 sm:p-5 lg:grid-cols-2">
+    <div className="space-y-6 border-t bg-muted/40 p-4 sm:p-5">
+      {candidate.judgments && !candidate.hard_filter_failed && (
+        <TickSheet judgments={candidate.judgments} />
+      )}
+      <div className="grid gap-6 lg:grid-cols-2">
       <div className="space-y-4">
         {candidate.rationale && (
           <div>
@@ -224,6 +359,7 @@ function CandidateDetail({
             Outreach drafts are prepared for shortlisted candidates only.
           </p>
         )}
+      </div>
       </div>
     </div>
   );

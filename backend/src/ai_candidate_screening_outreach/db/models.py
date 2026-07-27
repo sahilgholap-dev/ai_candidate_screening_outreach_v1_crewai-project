@@ -247,6 +247,8 @@ class Candidate(Base):
     email_draft = Column(Text, nullable=True)
     sms_draft = Column(Text, nullable=True)
     outreach_approved = Column(Boolean, default=False, nullable=False)
+    # Tick-sheet: per-item judgments + per-bucket points (scoring.judgment_record)
+    judgments = Column(JSON, nullable=True)
 
     campaign = relationship("Campaign", back_populates="candidates")
 

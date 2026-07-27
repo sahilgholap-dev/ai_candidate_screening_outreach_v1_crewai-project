@@ -13,7 +13,10 @@ from ai_candidate_screening_outreach.db.models import (
     SkillJudgment,
     UnifiedRequirements,
 )
-from ai_candidate_screening_outreach.pipeline.scoring import compute_score
+from ai_candidate_screening_outreach.pipeline.scoring import (
+    compute_score,
+    judgment_record,
+)
 from ai_candidate_screening_outreach.schemas.requirements import CustomWeights
 
 # default weights: required 40 / must-haves 20 / experience 20 / education 10 / preferred 10
@@ -175,6 +178,53 @@ def test_judgments_without_profile_match_weigh_as_supporting():
         ]
     )
     assert compute_score(ev, WEIGHTS, _profile()) == 20 + 20 + 20 + 10 + 10
+
+
+def test_judgment_record_carries_ticks_and_bucket_points():
+    profile = _profile(
+        required_skills=[
+            RequiredSkill(skill="React Native", core=True),
+            RequiredSkill(skill="Git", core=False),
+        ],
+        min_years_experience="2",
+    )
+    ev = _ev(
+        required_skill_judgments=[
+            SkillJudgment(skill="React Native", present=True),
+            SkillJudgment(skill="Git", present=False),
+        ],
+        preferred_skill_judgments=[SkillJudgment(skill="Expo", present=True)],
+        must_have_judgments=[MustHaveJudgment(item="onsite", status="unknown")],
+        estimated_total_years=3.0,
+    )
+    rec = judgment_record(ev, WEIGHTS, profile)
+
+    assert rec["required_skills"] == [
+        {"skill": "React Native", "present": True, "core": True},
+        {"skill": "Git", "present": False, "core": False},
+    ]
+    assert rec["preferred_skills"] == [{"skill": "Expo", "present": True}]
+    assert rec["must_haves"] == [{"item": "onsite", "status": "unknown"}]
+    assert rec["estimated_total_years"] == 3.0
+
+    buckets = rec["breakdown"]["buckets"]
+    # required: 40 * 3/(3+1) = 30; everything else full
+    assert buckets["required_skills"] == {"points": 30, "cap": 40}
+    assert buckets["must_haves"] == {"points": 20, "cap": 20}
+    assert buckets["experience"] == {"points": 20, "cap": 20}
+    assert buckets["education"] == {"points": 10, "cap": 10}
+    assert buckets["preferred_skills"] == {"points": 10, "cap": 10}
+    assert rec["breakdown"]["total"] == 90
+    assert rec["breakdown"]["total"] == compute_score(ev, WEIGHTS, profile)
+
+
+def test_judgment_record_hard_filter_zeroes_total():
+    ev = _ev(
+        hard_filter_failed=True,
+        required_skill_judgments=[SkillJudgment(skill="A", present=True)],
+    )
+    rec = judgment_record(ev, WEIGHTS, _profile())
+    assert rec["breakdown"]["total"] == 0
 
 
 def test_score_is_deterministic_and_bounded():
