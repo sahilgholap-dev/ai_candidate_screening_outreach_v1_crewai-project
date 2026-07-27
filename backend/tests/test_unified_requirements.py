@@ -54,6 +54,16 @@ def test_render_contains_all_sections_and_items():
     assert "Willing to work onsite" in text
 
 
+def test_profile_round_trips_through_json_storage():
+    # runner stores model_dump() on the campaign row and re-validates on
+    # reuse; the rendered rubric must come back byte-identical
+    original = _sample()
+    restored = UnifiedRequirements.model_validate(original.model_dump())
+    assert render_unified_requirements(restored) == render_unified_requirements(
+        original
+    )
+
+
 def test_render_empty_lists_say_not_specified():
     profile = UnifiedRequirements(summary="Role.")
     text = render_unified_requirements(profile)

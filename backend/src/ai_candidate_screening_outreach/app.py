@@ -360,6 +360,7 @@ async def rerun_campaign(
         region=campaign.region,
         threshold=campaign.threshold,
         requirements=campaign.requirements,
+        unified_profile=campaign.unified_profile,  # same checklist across reruns
         jd_text=campaign.jd_text,
         status="Queued",
     )

@@ -211,21 +211,36 @@ def run_campaign(campaign_id: int) -> None:
         total_usage: dict = {}
         final_content = ""
 
-        # ---- 3. Stage 1: unified requirements (once per campaign) ----
-        recruiter_block = build_recruiter_requirements_block(profile, region)
-        stage1 = RequirementsCrew().crew().kickoff(
-            inputs={
-                "job_description": campaign.jd_text or "(no job description provided)",
-                "recruiter_requirements": recruiter_block,
-            }
-        )
+        # ---- 3. Stage 1: unified requirements (generated ONCE per campaign
+        # family, then stored) ----
+        # Retries and "Run again" clones reuse the stored checklist so every
+        # run of a campaign scores against a byte-identical rubric; only a
+        # campaign with no stored profile generates one.
+        unified_profile: UnifiedRequirements | None = None
+        if campaign.unified_profile:
+            try:
+                unified_profile = UnifiedRequirements.model_validate(
+                    campaign.unified_profile
+                )
+            except ValueError:
+                unified_profile = None  # stored shape outdated: regenerate
+        if unified_profile is None:
+            recruiter_block = build_recruiter_requirements_block(profile, region)
+            stage1 = RequirementsCrew().crew().kickoff(
+                inputs={
+                    "job_description": campaign.jd_text or "(no job description provided)",
+                    "recruiter_requirements": recruiter_block,
+                }
+            )
+            unified_profile = stage1.pydantic or UnifiedRequirements(
+                summary=stage1.raw[:2000]
+            )
+            _add_usage(total_usage, _usage_dict(stage1.token_usage))
+            campaign.unified_profile = unified_profile.model_dump()
+            db.commit()
         # Structured output rendered to fixed-format text: the rubric Stage 2
         # scores against must not vary in shape or verbosity run-to-run.
-        unified_profile: UnifiedRequirements = stage1.pydantic or UnifiedRequirements(
-            summary=stage1.raw[:2000]
-        )
         unified_requirements = render_unified_requirements(unified_profile)
-        _add_usage(total_usage, _usage_dict(stage1.token_usage))
         _write(os.path.join(output_dir, "requirements.md"), unified_requirements)
         final_content += (
             f"## Unified Job Requirements\n\n{unified_requirements}\n\n---\n\n"

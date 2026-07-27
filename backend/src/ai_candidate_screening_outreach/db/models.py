@@ -180,6 +180,9 @@ class Campaign(Base):
     threshold = Column(Float, default=65.0)
     jd_text = Column(Text)
     requirements = Column(JSON, nullable=True)  # RequirementsProfile (Phase 3)
+    # Stage 1 output (UnifiedRequirements), written once on first run and
+    # reused by retries/reruns so every run scores against the same checklist.
+    unified_profile = Column(JSON, nullable=True)
     status = Column(String, default="Pending")  # Pending, Queued, Processing, Completed, Error
     token_usage = Column(JSON, nullable=True)  # aggregated LLM usage for this run
     error_message = Column(Text, nullable=True)  # last failure, shown in UI on Error
