@@ -321,6 +321,77 @@ async def retry_campaign(
     return {"success": True, "campaign_id": campaign.id, "status": "Queued"}
 
 
+@app.post("/api/campaigns/{campaign_id}/rerun")
+async def rerun_campaign(
+    campaign_id: int,
+    user: User = Depends(require_company_user),
+    db: Session = Depends(get_db),
+):
+    """Clone a finished campaign (same JD, requirements, and parsed resumes)
+    and queue the copy — the original's results stay untouched so runs can be
+    compared side by side. No re-upload needed: parsed text lives on the rows."""
+    campaign = _campaign_query(db, user).filter(Campaign.id == campaign_id).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    if campaign.status not in ("Completed", "Error"):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Only finished campaigns can be re-run (status is {campaign.status})",
+        )
+    candidates = (
+        db.query(Candidate).filter(Candidate.campaign_id == campaign.id).all()
+    )
+    if not any(c.parsed_text for c in candidates):
+        raise HTTPException(
+            status_code=409,
+            detail="No parsed resume text is stored for this campaign (data may have been purged)",
+        )
+
+    prior_runs = (
+        _campaign_query(db, user)
+        .filter(Campaign.name.like(f"{campaign.name.split(' (run ')[0]} (run %"))
+        .count()
+    )
+    base_name = campaign.name.split(" (run ")[0]
+    clone = Campaign(
+        name=f"{base_name} (run {prior_runs + 2})",
+        company_id=campaign.company_id,
+        created_by=user.id,
+        region=campaign.region,
+        threshold=campaign.threshold,
+        requirements=campaign.requirements,
+        jd_text=campaign.jd_text,
+        status="Queued",
+    )
+    db.add(clone)
+    db.commit()
+    db.refresh(clone)
+
+    for c in candidates:
+        if c.parsed_text:
+            db.add(
+                Candidate(
+                    campaign_id=clone.id,
+                    original_filename=c.original_filename,
+                    parsed_text=c.parsed_text,
+                )
+            )
+    log_action(
+        db,
+        "campaign.rerun",
+        user=user,
+        company_id=campaign.company_id,
+        detail={
+            "source_campaign_id": campaign.id,
+            "new_campaign_id": clone.id,
+            "name": clone.name,
+        },
+    )
+    db.commit()
+    enqueue_campaign(db, clone)
+    return {"success": True, "campaign_id": clone.id, "status": "Queued"}
+
+
 class CandidateUpdate(BaseModel):
     email_draft: str | None = None
     sms_draft: str | None = None

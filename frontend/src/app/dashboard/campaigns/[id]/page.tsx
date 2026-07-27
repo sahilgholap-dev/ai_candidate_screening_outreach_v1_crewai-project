@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { use, useState } from "react";
 
 import { ScoreTile, verdictFor } from "@/components/score-tile";
@@ -237,6 +238,7 @@ export default function CampaignDetailPage({
   const [tab, setTab] = useState<Tab>("all");
   const [openId, setOpenId] = useState<number | null>(null);
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   const { data } = useQuery<CampaignDetail>({
     queryKey: ["campaign", id],
@@ -255,6 +257,17 @@ export default function CampaignDetailPage({
     mutationFn: () => api(`/campaigns/${id}/retry`, { method: "POST" }),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ["campaign", id] }),
+  });
+
+  // Clones the campaign (same JD, requirements, parsed resumes) and queues
+  // the copy — this run's results stay intact for side-by-side comparison.
+  const rerun = useMutation({
+    mutationFn: () =>
+      api<{ campaign_id: number }>(`/campaigns/${id}/rerun`, { method: "POST" }),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      router.push(`/dashboard/campaigns/${res.campaign_id}`);
+    },
   });
 
   const counts = {
@@ -302,12 +315,25 @@ export default function CampaignDetailPage({
       title={campaign?.name ?? "Campaign"}
       actions={
         campaign && (
-          <a
-            href={`/api/backend/campaigns/${campaign.id}/export.csv`}
-            className={buttonVariants({ variant: "outline", size: "sm" })}
-          >
-            Export CSV
-          </a>
+          <div className="flex items-center gap-2">
+            {(campaign.status === "Completed" || campaign.status === "Error") && (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={rerun.isPending}
+                onClick={() => rerun.mutate()}
+                title="Clones this campaign (same JD, requirements, and resumes) and runs it again — this run's results are kept for comparison"
+              >
+                {rerun.isPending ? "Cloning…" : "Run again"}
+              </Button>
+            )}
+            <a
+              href={`/api/backend/campaigns/${campaign.id}/export.csv`}
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              Export CSV
+            </a>
+          </div>
         )
       }
     >
