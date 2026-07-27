@@ -1,0 +1,13 @@
+.venv/
+.env
+__pycache__/
+*.pyc
+campaigns.db*
+scratch_*.db
+logs/
+outputs/
+downloads/
+uploads/
+src/ai_candidate_screening_outreach/uploads/
+Dockerfile
+railway.json
