@@ -47,6 +47,44 @@ class CampaignResults(BaseModel):
     evaluations: List[CandidateEvaluation]
 
 
+class UnifiedRequirements(BaseModel):
+    """Structured Stage 1 output. Constraining the profile to this schema (and
+    rendering it deterministically) keeps the scoring rubric's inputs stable
+    across runs — free-form prose drifted run-to-run and swung scores."""
+
+    summary: str = Field(description="2-3 plain-language sentences describing the role")
+    required_skills: List[str] = Field(
+        default_factory=list, description="Non-negotiable technical and soft skills"
+    )
+    preferred_skills: List[str] = Field(
+        default_factory=list, description="Bonus / nice-to-have skills"
+    )
+    min_years_experience: str = Field(
+        default="Not specified",
+        description="Numeric minimum ONLY if stated verbatim in a source, else 'Not specified'",
+    )
+    location: str = Field(
+        default="Not specified", description="Office city/region or Remote, plus commute/relocation rules"
+    )
+    work_mode: str = Field(default="Not specified", description="On-site / Hybrid / Remote")
+    work_authorization: str = Field(
+        default="Not specified", description="Visa / right-to-work / employment-type requirements"
+    )
+    education: str = Field(
+        default="Not specified", description="Degree level and field if specified"
+    )
+    must_haves: List[str] = Field(
+        default_factory=list,
+        description="Hard requirements beyond skills (certifications, licenses, availability, shift, notice, authorization)",
+    )
+    nice_to_haves: List[str] = Field(
+        default_factory=list, description="Additional desirable qualities that are not blockers"
+    )
+    compensation_budget: str = Field(
+        default="Not specified", description="Budget if provided (flag-only, never a rejection reason)"
+    )
+
+
 # --- SQLAlchemy ORM Models ---
 class Company(Base):
     __tablename__ = "companies"

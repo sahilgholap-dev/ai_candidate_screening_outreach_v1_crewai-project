@@ -5,7 +5,7 @@ Everything returned here is plain text inserted as CrewAI kickoff inputs —
 never re-interpolated, so content is free-form.
 """
 
-from ..db.models import Campaign, Company
+from ..db.models import Campaign, Company, UnifiedRequirements
 from ..schemas.requirements import CustomWeights, RequirementsProfileV1
 
 REGION_NAMES = {"US": "United States", "UK": "United Kingdom", "IN": "India"}
@@ -18,6 +18,53 @@ def load_profile(campaign: Campaign) -> RequirementsProfileV1 | None:
         return RequirementsProfileV1.model_validate(campaign.requirements)
     except ValueError:
         return None
+
+
+# ---------------------------------------------------------------- unified requirements
+
+def render_unified_requirements(profile: UnifiedRequirements) -> str:
+    """Deterministic text form of the structured Stage 1 output, injected into
+    Stage 2 prompts. Fixed section order and phrasing — no free prose."""
+
+    def items(values: list[str]) -> str:
+        if not values:
+            return "- Not specified"
+        return "\n".join(f"- {v}" for v in values)
+
+    return f"""# Unified Requirements Profile
+
+## Summary
+{profile.summary}
+
+## Required Skills
+{items(profile.required_skills)}
+
+## Preferred / Nice-to-Have Skills
+{items(profile.preferred_skills)}
+
+## Minimum Years of Experience
+- {profile.min_years_experience}
+
+## Location
+- {profile.location}
+
+## Work Mode
+- {profile.work_mode}
+
+## Work Authorization
+- {profile.work_authorization}
+
+## Education Requirements
+- {profile.education}
+
+## Must-Haves
+{items(profile.must_haves)}
+
+## Nice-to-Haves
+{items(profile.nice_to_haves)}
+
+## Compensation Budget
+- {profile.compensation_budget}"""
 
 
 # ---------------------------------------------------------------- recruiter block

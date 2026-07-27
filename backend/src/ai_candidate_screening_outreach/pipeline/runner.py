@@ -36,6 +36,7 @@ from .prompt_builder import (
     build_recruiter_requirements_block,
     build_scoring_rules,
     load_profile,
+    render_unified_requirements,
 )
 
 BATCH_SIZE = 2
@@ -201,7 +202,12 @@ def run_campaign(campaign_id: int) -> None:
                 "recruiter_requirements": recruiter_block,
             }
         )
-        unified_requirements = stage1.raw
+        # Structured output rendered to fixed-format text: the rubric Stage 2
+        # scores against must not vary in shape or verbosity run-to-run.
+        if stage1.pydantic is not None:
+            unified_requirements = render_unified_requirements(stage1.pydantic)
+        else:
+            unified_requirements = stage1.raw
         _add_usage(total_usage, _usage_dict(stage1.token_usage))
         _write(os.path.join(output_dir, "requirements.md"), unified_requirements)
         final_content += (

@@ -49,9 +49,9 @@ extract_job_requirements:
     NOT numeric minimums — for those, write exactly "Not specified". NEVER infer,
     estimate, or invent a number of years. The same applies to Must-Haves: never
     add an experience-duration must-have that neither source states numerically.'
-  expected_output: A structured markdown document titled "Unified Requirements Profile"
-    with clearly labeled sections for each extracted field. Every item should be a
-    bullet point, and items originating from the recruiter form should be marked "(recruiter)".
-    Include a brief "Summary" paragraph at the top (2-3 sentences) describing the
-    role in plain language.
+  expected_output: A structured Unified Requirements Profile with every extracted
+    field filled in. List fields hold short, concrete items (one skill or requirement
+    per item, no prose); scalar fields hold a short phrase or exactly "Not specified".
+    The summary is 2-3 plain-language sentences describing the role. Be terse and
+    factual — extract, never elaborate.
   agent: senior_technical_recruiter

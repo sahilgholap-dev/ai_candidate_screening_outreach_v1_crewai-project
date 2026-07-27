@@ -1,7 +1,7 @@
 from crewai import LLM, Agent, Crew, Process, Task
 from crewai.project import CrewBase, agent, crew, task
 
-from ai_candidate_screening_outreach.db.models import CampaignResults
+from ai_candidate_screening_outreach.db.models import CampaignResults, UnifiedRequirements
 
 MODEL = "anthropic/claude-sonnet-4-6"
 
@@ -27,12 +27,17 @@ class RequirementsCrew:
             config=self.agents_config["senior_technical_recruiter"],
             inject_date=True,
             allow_delegation=False,
-            llm=_llm(),
+            # temperature 0: the profile is the rubric every candidate is
+            # scored against; run-to-run drift here swings scores 20+ points.
+            llm=_llm(temperature=0.0),
         )
 
     @task
     def extract_job_requirements(self) -> Task:
-        return Task(config=self.tasks_config["extract_job_requirements"])
+        return Task(
+            config=self.tasks_config["extract_job_requirements"],
+            output_pydantic=UnifiedRequirements,
+        )
 
     @crew
     def crew(self) -> Crew:
@@ -67,7 +72,7 @@ class ScreeningCrew:
             config=self.agents_config["candidate_assessment_expert"],
             inject_date=True,
             allow_delegation=False,
-            llm=_llm(temperature=0.2),
+            llm=_llm(temperature=0.0),
         )
 
     @agent
