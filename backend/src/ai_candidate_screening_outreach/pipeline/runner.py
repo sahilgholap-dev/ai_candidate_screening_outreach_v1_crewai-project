@@ -39,7 +39,9 @@ from .prompt_builder import (
     render_unified_requirements,
 )
 
-BATCH_SIZE = 2
+# 1 = each candidate evaluated in isolation: batch-mates influenced scoring
+# (correlated drift within chunks observed in A/B runs 17 vs 18)
+BATCH_SIZE = 1
 CHUNK_SLEEP_SECONDS = 10
 CHUNK_RETRIES = 1
 
