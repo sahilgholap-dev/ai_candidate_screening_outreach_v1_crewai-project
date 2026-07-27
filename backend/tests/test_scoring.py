@@ -97,16 +97,38 @@ def test_experience_below_minimum_scales():
     assert compute_score(ev, WEIGHTS, profile) == 100 - 20 + 5
 
 
-def test_experience_unknown_years_gets_full_points():
+def test_experience_unknown_years_counts_as_zero():
+    # no duration evidence on the resume = 0 years, not free points
     ev = _ev(estimated_total_years=None)
     profile = _profile(min_years_experience="4")
-    assert compute_score(ev, WEIGHTS, profile) == 100
+    assert compute_score(ev, WEIGHTS, profile) == 100 - 20
+
+
+def test_one_year_minimum_scales_from_zero():
+    # min >= 1 differentiates: unknown/0 years earns nothing, a real year earns full
+    profile = _profile(min_years_experience="1+ year")
+    assert compute_score(_ev(estimated_total_years=None), WEIGHTS, profile) == 80
+    assert compute_score(_ev(estimated_total_years=0.5), WEIGHTS, profile) == 90
+    assert compute_score(_ev(estimated_total_years=1.0), WEIGHTS, profile) == 100
+
+
+def test_range_minimum_uses_lower_bound():
+    # "2 to 3 years" -> minimum 2; zero experience zeroes the bucket
+    profile = _profile(min_years_experience="2 to 3 years")
+    assert compute_score(_ev(estimated_total_years=0.0), WEIGHTS, profile) == 80
+    assert compute_score(_ev(estimated_total_years=2.0), WEIGHTS, profile) == 100
 
 
 def test_no_minimum_specified_ignores_years():
     ev = _ev(estimated_total_years=0.5)
     profile = _profile(min_years_experience="Not specified")
     assert compute_score(ev, WEIGHTS, profile) == 100
+    # explicit "0 years" behaves the same: entry-level, nobody penalized
+    assert compute_score(
+        _ev(estimated_total_years=None),
+        WEIGHTS,
+        _profile(min_years_experience="0 years"),
+    ) == 100
 
 
 def test_education_unmet_zeroes_bucket_only_when_required():

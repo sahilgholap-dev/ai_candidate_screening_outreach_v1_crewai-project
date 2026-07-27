@@ -71,13 +71,15 @@ def _bucket_points(
         weights.must_haves, ev.must_have_judgments, lambda j: j.status != "unmet"
     )
 
+    # Experience: no stated minimum (or 0) = entry-level, full points for all.
+    # From a 1-year minimum upward it differentiates: no duration evidence on
+    # the resume counts as 0 years (not free points), scaling proportionally.
     min_years = _parse_min_years(profile.min_years_experience)
-    if min_years is None or min_years <= 0 or ev.estimated_total_years is None:
-        experience = weights.experience  # no minimum, or no evidence: full points
-    elif ev.estimated_total_years >= min_years:
+    years = ev.estimated_total_years if ev.estimated_total_years is not None else 0.0
+    if min_years is None or min_years <= 0 or years >= min_years:
         experience = weights.experience
     else:
-        experience = round(weights.experience * ev.estimated_total_years / min_years)
+        experience = round(weights.experience * years / min_years)
 
     education_required = profile.education.strip().lower() not in ("", "not specified")
     if education_required and ev.education_status == "unmet":
