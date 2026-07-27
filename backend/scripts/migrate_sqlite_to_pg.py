@@ -42,6 +42,23 @@ def main() -> None:
     with src.connect() as s, dst.begin() as d:
         for table in tables:
             rows = [dict(r) for r in s.execute(select(table)).mappings()]
+
+            # SQLite didn't always enforce FKs, so legacy rows may reference
+            # deleted parents (e.g. campaigns.created_by -> removed user).
+            # Null out orphaned references on nullable FK columns.
+            for col in table.columns:
+                if not col.foreign_keys or not col.nullable:
+                    continue
+                ref = next(iter(col.foreign_keys)).column
+                valid = {r[0] for r in s.execute(select(ref))}
+                for row in rows:
+                    val = row.get(col.name)
+                    if val is not None and val not in valid:
+                        print(
+                            f"WARN {table.name}.{col.name}={val} orphaned "
+                            f"(no {ref.table.name}.{ref.name}) -> NULL"
+                        )
+                        row[col.name] = None
             if rows:
                 d.execute(table.insert(), rows)
             src_n = len(rows)
