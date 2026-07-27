@@ -41,6 +41,21 @@ npm run dev                              # http://localhost:3000
 Stack: Next.js App Router, TypeScript, Tailwind v4, shadcn/ui,
 TanStack Query, react-hook-form + zod.
 
+## Staging deployment
+
+| Piece | Where | Notes |
+| --- | --- | --- |
+| Frontend | Vercel — <https://ai-candidate-screening-outreach-v1.vercel.app> | root dir `frontend`, env: `BACKEND_URL` |
+| Backend | Railway (Dockerfile build) | root dir `backend`, env: `DATABASE_URL`, `ANTHROPIC_API_KEY`, `JWT_SECRET`, `FRONTEND_ORIGIN` |
+| Database | Supabase Postgres (`ap-northeast-2`) | connect via **session pooler** (port 5432); password must be URL-encoded in `DATABASE_URL` |
+
+Deploys are automatic on push to `main`. The Railway container runs
+`alembic upgrade head` before serving (see `backend/Dockerfile`). Uploads on
+Railway are ephemeral — resume/JD text is parsed into DB rows, so this is
+acceptable for staging. One-off data migration from local SQLite:
+`backend/scripts/migrate_sqlite_to_pg.py`. Design/plan docs:
+`docs/superpowers/`.
+
 ## Secrets & data hygiene
 
 - `.env`, `*.db`, `logs/`, `uploads/`, `outputs/`, `downloads/` are gitignored.
