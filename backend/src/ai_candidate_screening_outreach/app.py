@@ -1,4 +1,5 @@
 import csv
+import hashlib
 import io
 import json
 import os
@@ -136,7 +137,9 @@ async def create_campaign(
     region: str | None = Form(None),
     requirements: str | None = Form(None),  # JSON-encoded RequirementsProfileV1
     jd_file: UploadFile = File(...),
-    resume_files: List[UploadFile] = File(...),
+    resume_files: List[UploadFile] = File(default=[]),
+    intake_mode: str = Form("upload"),
+    folder_name: str | None = Form(None),
     user: User = Depends(require_company_user),
     db: Session = Depends(get_db),
 ):
@@ -145,6 +148,13 @@ async def create_campaign(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Campaigns are created by company users",
         )
+
+    if intake_mode not in {"upload", "folder"}:
+        raise HTTPException(
+            status_code=422, detail="intake_mode must be 'upload' or 'folder'"
+        )
+    if intake_mode == "upload" and not resume_files:
+        raise HTTPException(status_code=422, detail="Upload at least one resume")
 
     if len(resume_files) > MAX_RESUMES_PER_CAMPAIGN:
         raise HTTPException(
@@ -185,7 +195,9 @@ async def create_campaign(
         threshold=threshold,
         requirements=requirements_data,
         jd_text="",  # parsed in background
-        status="Queued",
+        intake_mode=intake_mode,
+        folder_name=folder_name,
+        status="Watching" if intake_mode == "folder" and not validated_resumes else "Queued",
     )
     db.add(new_campaign)
     db.commit()
@@ -208,6 +220,7 @@ async def create_campaign(
                 campaign_id=new_campaign.id,
                 original_filename=safe_name,
                 parsed_text="",  # parsed by background task
+                content_hash=hashlib.sha256(r_bytes).hexdigest(),
             )
         )
 
@@ -220,11 +233,13 @@ async def create_campaign(
             "name": new_campaign.name,
             "region": new_campaign.region,
             "resumes": len(resume_files),
+            "intake_mode": intake_mode,
         },
     )
     db.commit()
 
-    enqueue_campaign(db, new_campaign)
+    if validated_resumes:
+        enqueue_campaign(db, new_campaign)
 
     return {"success": True, "campaign_id": new_campaign.id}
 
