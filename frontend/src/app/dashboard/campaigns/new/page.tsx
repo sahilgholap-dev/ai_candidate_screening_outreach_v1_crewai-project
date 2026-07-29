@@ -2,7 +2,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { RequirementsForm } from "@/components/requirements-form";
 import { Shell } from "@/components/shell";
@@ -66,6 +66,13 @@ export default function NewCampaignPage() {
   );
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // SSR HTML and the first client render must match, so browser capability
+  // detection goes through useSyncExternalStore with a false server snapshot.
+  const folderSupported = useSyncExternalStore(
+    () => () => {},
+    () => isFolderPickSupported(),
+    () => false,
+  );
 
   useEffect(() => {
     if (company) {
@@ -215,13 +222,13 @@ export default function NewCampaignPage() {
                     type="button"
                     size="sm"
                     variant={intakeMode === "folder" ? "default" : "outline"}
-                    disabled={!isFolderPickSupported()}
+                    disabled={!folderSupported}
                     onClick={() => setIntakeMode("folder")}
                   >
                     Watch a folder
                   </Button>
                 </div>
-                {!isFolderPickSupported() && (
+                {!folderSupported && (
                   <p className="text-xs text-muted-foreground">
                     Folder watching needs Chrome or Edge.
                   </p>
