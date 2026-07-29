@@ -191,7 +191,10 @@ class Campaign(Base):
     # Stage 1 output (UnifiedRequirements), written once on first run and
     # reused by retries/reruns so every run scores against the same checklist.
     unified_profile = Column(JSON, nullable=True)
-    status = Column(String, default="Pending")  # Pending, Queued, Processing, Completed, Error
+    status = Column(String, default="Pending")  # Pending, Watching, Queued, Processing, Completed, Error
+    # "upload" (manual select-and-upload) | "folder" (browser-watched folder)
+    intake_mode = Column(String, default="upload", nullable=False)
+    folder_name = Column(String, nullable=True)  # display-only; browsers never expose full paths
     token_usage = Column(JSON, nullable=True)  # aggregated LLM usage for this run
     error_message = Column(Text, nullable=True)  # last failure, shown in UI on Error
     final_report = Column(Text, nullable=True)  # Kept for legacy or high-level summary
@@ -229,6 +232,7 @@ class Candidate(Base):
         Integer, ForeignKey("campaigns.id", ondelete="CASCADE"), nullable=False, index=True
     )
     original_filename = Column(String)
+    content_hash = Column(String, nullable=True, index=True)  # sha256 of file bytes; dedup key
     parsed_text = Column(Text)
 
     # Structured evaluation fields
