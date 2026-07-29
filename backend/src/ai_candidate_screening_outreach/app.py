@@ -244,6 +244,96 @@ async def create_campaign(
     return {"success": True, "campaign_id": new_campaign.id}
 
 
+@app.get("/api/campaigns/{campaign_id}/resume-manifest")
+async def resume_manifest(
+    campaign_id: int,
+    user: User = Depends(require_company_user),
+    db: Session = Depends(get_db),
+):
+    """Hashes of resumes already attached — the folder watcher diffs against this."""
+    campaign = _campaign_query(db, user).filter(Campaign.id == campaign_id).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    rows = db.query(Candidate).filter(Candidate.campaign_id == campaign_id).all()
+    return {
+        "resumes": [
+            {"content_hash": c.content_hash, "original_filename": c.original_filename}
+            for c in rows
+        ]
+    }
+
+
+@app.post("/api/campaigns/{campaign_id}/resumes")
+async def add_resumes(
+    campaign_id: int,
+    resume_files: List[UploadFile] = File(...),
+    user: User = Depends(require_company_user),
+    db: Session = Depends(get_db),
+):
+    """Append resumes to an existing campaign and enqueue an incremental run.
+
+    Files are parsed into parsed_text NOW: the runner deletes the upload dir
+    after each run and Railway's disk is ephemeral, so disk can't be relied on
+    between upload and run.
+    """
+    from ai_candidate_screening_outreach.pipeline.runner import _extract_file_text
+
+    campaign = _campaign_query(db, user).filter(Campaign.id == campaign_id).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    existing = db.query(Candidate).filter(Candidate.campaign_id == campaign_id).all()
+    existing_hashes = {c.content_hash for c in existing if c.content_hash}
+    if len(existing) + len(resume_files) > MAX_RESUMES_PER_CAMPAIGN:
+        raise HTTPException(
+            status_code=422,
+            detail=f"At most {MAX_RESUMES_PER_CAMPAIGN} resumes per campaign",
+        )
+
+    upload_dir = os.path.join(BASE_DIR, "uploads", f"campaign_{campaign_id}")
+    os.makedirs(upload_dir, exist_ok=True)
+
+    added: list[str] = []
+    skipped: list[str] = []
+    for r_file in resume_files:
+        r_bytes = await r_file.read()
+        safe_name = _validate_upload(r_file.filename, r_bytes, "Resume")
+        content_hash = hashlib.sha256(r_bytes).hexdigest()
+        if content_hash in existing_hashes:
+            skipped.append(safe_name)
+            continue
+        file_path = os.path.join(upload_dir, safe_name)
+        with open(file_path, "wb") as f:
+            f.write(r_bytes)
+        db.add(
+            Candidate(
+                campaign_id=campaign_id,
+                original_filename=safe_name,
+                parsed_text=_extract_file_text(file_path),
+                content_hash=content_hash,
+            )
+        )
+        existing_hashes.add(content_hash)
+        added.append(safe_name)
+
+    if added:
+        log_action(
+            db,
+            "campaign.resumes_added",
+            user=user,
+            detail={
+                "campaign_id": campaign_id,
+                "added": len(added),
+                "skipped": len(skipped),
+                "intake_mode": campaign.intake_mode,
+            },
+        )
+        if campaign.status not in {"Queued", "Processing"}:
+            campaign.status = "Queued"
+    db.commit()
+    return {"added": added, "skipped": skipped, "status": campaign.status}
+
+
 @app.post("/api/delete-campaigns")
 async def delete_campaigns(
     request: Request,
