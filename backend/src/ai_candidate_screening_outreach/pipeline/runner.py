@@ -113,6 +113,16 @@ def _partition_candidates(candidates: list[Candidate]) -> list[Candidate]:
     to_process: list[Candidate] = []
     for candidate in candidates:
         screened = candidate.score is not None or bool(candidate.recommendation)
+        if not (candidate.parsed_text or "").strip():
+            # No text (unreadable file, or file lives on another worker's
+            # disk): never feed an empty resume to the LLM — it would be
+            # scored on nothing.
+            if not screened:
+                candidate.recommendation = "Needs Review"
+                candidate.rationale = (
+                    "Resume text could not be extracted — review the file manually."
+                )
+            continue
         keys = _contact_keys(candidate.parsed_text)
         dup_of = next((seen[k] for k in keys if k in seen), None)
         if dup_of is not None and not screened:
@@ -217,10 +227,22 @@ def run_campaign(campaign_id: int) -> None:
         campaign.error_message = None  # fresh attempt clears the last failure
         db.commit()
 
-        # ---- 1. Parse input files ----
-        if jd_path and os.path.exists(jd_path):
+        # ---- 1. Parse input files (legacy fallback — new campaigns arrive
+        # with jd_text/parsed_text already stored at upload time, because the
+        # worker that runs a campaign may not be the machine that has the
+        # uploaded files on disk) ----
+        if not (campaign.jd_text or "").strip() and jd_path and os.path.exists(jd_path):
             campaign.jd_text = _extract_file_text(jd_path)
             db.commit()
+        if not (campaign.jd_text or "").strip():
+            campaign.status = "Error"
+            campaign.error_message = (
+                "Job description text is unavailable on this worker — re-create "
+                "the campaign (files were likely uploaded to a different server)."
+            )
+            campaign.finished_at = utcnow()
+            db.commit()
+            return
 
         candidates = (
             db.query(Candidate).filter(Candidate.campaign_id == campaign_id).all()
