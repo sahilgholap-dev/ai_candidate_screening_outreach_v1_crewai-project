@@ -206,24 +206,9 @@ async def create_campaign(
     upload_dir = os.path.join(BASE_DIR, "uploads", f"campaign_{new_campaign.id}")
     os.makedirs(upload_dir, exist_ok=True)
 
-    # Parse text into the DB NOW: the queue is shared between workers (local
-    # dev and Railway share the staging Postgres) but files live only on the
-    # machine that received them — a run on the other worker must not depend
-    # on this disk.
-    from ai_candidate_screening_outreach.pipeline.runner import _extract_file_text
-
     jd_path = os.path.join(upload_dir, f"JD_{jd_name}")
     with open(jd_path, "wb") as f:
         f.write(jd_bytes)
-    new_campaign.jd_text = _extract_file_text(jd_path)
-    if not new_campaign.jd_text.strip():
-        db.delete(new_campaign)
-        db.commit()
-        raise HTTPException(
-            status_code=422,
-            detail=f"Job description '{jd_name}' contains no extractable text "
-            "(scanned image PDF?). Upload a text-based file.",
-        )
 
     for safe_name, r_bytes in validated_resumes:
         file_path = os.path.join(upload_dir, safe_name)
@@ -234,7 +219,7 @@ async def create_campaign(
             Candidate(
                 campaign_id=new_campaign.id,
                 original_filename=safe_name,
-                parsed_text=_extract_file_text(file_path),
+                parsed_text="",  # parsed by background task
                 content_hash=hashlib.sha256(r_bytes).hexdigest(),
             )
         )

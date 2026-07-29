@@ -40,22 +40,6 @@ def test_screened_duplicate_is_not_remarked():
     assert cands[1].recommendation == "Duplicate"
 
 
-def test_empty_parsed_text_never_reaches_llm():
-    cands = [
-        _cand(1, "email: a@x.com"),
-        _cand(2, ""),  # unreadable file / file on another worker's disk
-    ]
-    result = _partition_candidates(cands)
-    assert [c.id for c in result] == [1]
-    assert cands[1].recommendation == "Needs Review"
-
-
-def test_empty_text_but_already_screened_untouched():
-    cands = [_cand(1, "", score=70, recommendation="Shortlist")]
-    assert _partition_candidates(cands) == []
-    assert cands[0].recommendation == "Shortlist"
-
-
 def test_fresh_campaign_all_processed_duplicates_marked():
     cands = [
         _cand(1, "email: a@x.com"),

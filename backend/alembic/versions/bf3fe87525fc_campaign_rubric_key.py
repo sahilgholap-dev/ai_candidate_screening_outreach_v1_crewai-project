@@ -20,13 +20,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    with op.batch_alter_table("campaigns") as batch_op:
-        batch_op.add_column(sa.Column("rubric_key", sa.String(), nullable=True))
-        batch_op.create_index("ix_campaigns_rubric_key", ["rubric_key"])
+    pass
 
 
 def downgrade() -> None:
     """Downgrade schema."""
-    with op.batch_alter_table("campaigns") as batch_op:
-        batch_op.drop_index("ix_campaigns_rubric_key")
-        batch_op.drop_column("rubric_key")
+    pass

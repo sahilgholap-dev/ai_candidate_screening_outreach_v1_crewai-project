@@ -191,10 +191,6 @@ class Campaign(Base):
     # Stage 1 output (UnifiedRequirements), written once on first run and
     # reused by retries/reruns so every run scores against the same checklist.
     unified_profile = Column(JSON, nullable=True)
-    # sha256 of (JD text + canonical requirements): campaigns with the same
-    # key reuse each other's unified_profile so identical inputs score
-    # against an identical rubric.
-    rubric_key = Column(String, nullable=True, index=True)
     status = Column(String, default="Pending")  # Pending, Watching, Queued, Processing, Completed, Error
     # "upload" (manual select-and-upload) | "folder" (browser-watched folder)
     intake_mode = Column(String, default="upload", nullable=False)

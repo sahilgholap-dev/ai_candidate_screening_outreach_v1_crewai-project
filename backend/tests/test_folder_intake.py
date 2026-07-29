@@ -51,18 +51,3 @@ def test_resumes_get_content_hash(create_campaign_fn):
 def test_invalid_intake_mode_rejected(create_campaign_fn):
     res = create_campaign_fn(intake_mode="carrier-pigeon")
     assert res.status_code == 422
-
-
-def test_jd_and_resumes_parsed_at_creation(create_campaign_fn):
-    """Any worker (local or Railway) must be able to run the campaign, so
-    text extraction happens at upload time, not run time."""
-    res = create_campaign_fn(resumes=(("a.txt", b"python developer resume"),))
-    campaign_id = res.json()["campaign_id"]
-    db = SessionLocal()
-    try:
-        c = db.query(Campaign).filter(Campaign.id == campaign_id).first()
-        assert "job description" in c.jd_text
-        cand = db.query(Candidate).filter(Candidate.campaign_id == campaign_id).first()
-        assert cand.parsed_text == "python developer resume"
-    finally:
-        db.close()
