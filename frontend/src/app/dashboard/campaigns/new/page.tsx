@@ -25,6 +25,13 @@ import {
 } from "@/components/ui/select";
 import { api } from "@/lib/api";
 import {
+  isFolderAlreadyBound,
+  isFolderPickSupported,
+  listResumeFiles,
+  pickFolder,
+  saveBinding,
+} from "@/lib/folder-watch";
+import {
   defaultRequirements,
   MyCompany,
   RequirementsProfile,
@@ -50,6 +57,10 @@ export default function NewCampaignPage() {
   const [threshold, setThreshold] = useState<number>(65);
   const [jdFile, setJdFile] = useState<File | null>(null);
   const [resumeFiles, setResumeFiles] = useState<FileList | null>(null);
+  const [intakeMode, setIntakeMode] = useState<"upload" | "folder">("upload");
+  const [folderHandle, setFolderHandle] =
+    useState<FileSystemDirectoryHandle | null>(null);
+  const [folderFiles, setFolderFiles] = useState<File[]>([]);
   const [requirements, setRequirements] = useState<RequirementsProfile>(
     defaultRequirements(),
   );
@@ -63,12 +74,32 @@ export default function NewCampaignPage() {
     }
   }, [company]);
 
+  async function chooseFolder() {
+    setError(null);
+    try {
+      const handle = await pickFolder();
+      const boundTo = await isFolderAlreadyBound(handle);
+      if (boundTo !== null) {
+        return setError(
+          `This folder is already watched by campaign #${boundTo}. One folder per campaign.`,
+        );
+      }
+      setFolderHandle(handle);
+      setFolderFiles(await listResumeFiles(handle));
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return; // user cancelled
+      setError(e instanceof Error ? e.message : "Couldn't open folder");
+    }
+  }
+
   async function submit() {
     setError(null);
     if (!name.trim()) return setError("Campaign name is required");
     if (!jdFile) return setError("Upload a job description file");
-    if (!resumeFiles || resumeFiles.length === 0)
+    if (intakeMode === "upload" && (!resumeFiles || resumeFiles.length === 0))
       return setError("Upload at least one resume");
+    if (intakeMode === "folder" && !folderHandle)
+      return setError("Choose a folder to watch");
 
     setSubmitting(true);
     try {
@@ -78,7 +109,15 @@ export default function NewCampaignPage() {
       fd.append("region", region);
       fd.append("requirements", JSON.stringify(requirements));
       fd.append("jd_file", jdFile);
-      Array.from(resumeFiles).forEach((f) => fd.append("resume_files", f));
+      fd.append("intake_mode", intakeMode);
+      if (intakeMode === "folder" && folderHandle) {
+        fd.append("folder_name", folderHandle.name);
+        folderFiles.forEach((f) => fd.append("resume_files", f));
+      } else {
+        Array.from(resumeFiles ?? []).forEach((f) =>
+          fd.append("resume_files", f),
+        );
+      }
 
       const res = await fetch("/api/backend/campaigns", {
         method: "POST",
@@ -89,6 +128,9 @@ export default function NewCampaignPage() {
         throw new Error(
           typeof data.detail === "string" ? data.detail : "Failed to create campaign",
         );
+      }
+      if (intakeMode === "folder" && folderHandle) {
+        await saveBinding(data.campaign_id, folderHandle);
       }
       await queryClient.invalidateQueries({ queryKey: ["campaigns"] });
       router.push(`/dashboard/campaigns/${data.campaign_id}`);
@@ -159,18 +201,59 @@ export default function NewCampaignPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="resumes">Resumes (multiple)</Label>
-                <Input
-                  id="resumes"
-                  type="file"
-                  accept=".pdf,.docx,.txt"
-                  multiple
-                  onChange={(e) => setResumeFiles(e.target.files)}
-                />
-                {resumeFiles && (
+                <Label>Resumes</Label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={intakeMode === "upload" ? "default" : "outline"}
+                    onClick={() => setIntakeMode("upload")}
+                  >
+                    Upload files
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={intakeMode === "folder" ? "default" : "outline"}
+                    disabled={!isFolderPickSupported()}
+                    onClick={() => setIntakeMode("folder")}
+                  >
+                    Watch a folder
+                  </Button>
+                </div>
+                {!isFolderPickSupported() && (
                   <p className="text-xs text-muted-foreground">
-                    {resumeFiles.length} file(s) selected
+                    Folder watching needs Chrome or Edge.
                   </p>
+                )}
+                {intakeMode === "upload" ? (
+                  <>
+                    <Input
+                      id="resumes"
+                      type="file"
+                      accept=".pdf,.docx,.txt"
+                      multiple
+                      onChange={(e) => setResumeFiles(e.target.files)}
+                    />
+                    {resumeFiles && (
+                      <p className="text-xs text-muted-foreground">
+                        {resumeFiles.length} file(s) selected
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <Button type="button" variant="outline" onClick={chooseFolder}>
+                      {folderHandle ? "Change folder…" : "Choose folder…"}
+                    </Button>
+                    {folderHandle && (
+                      <p className="text-xs text-muted-foreground">
+                        📁 {folderHandle.name} — {folderFiles.length} resume(s)
+                        found now; new files will be screened automatically
+                        while the app is open.
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -215,7 +298,11 @@ export default function NewCampaignPage() {
             Cancel
           </Button>
           <Button onClick={submit} disabled={submitting}>
-            {submitting ? "Uploading…" : "Create & run campaign"}
+            {submitting
+              ? "Uploading…"
+              : intakeMode === "folder" && folderFiles.length === 0
+                ? "Create & watch folder"
+                : "Create & run campaign"}
           </Button>
         </div>
       </div>
