@@ -107,7 +107,23 @@ export function FolderWatcher() {
       if (busy.current) return;
       busy.current = true;
       try {
-        const bindings = await getBindings();
+        let bindings = await getBindings();
+        if (bindings.length === 0) {
+          setPendingGrants([]);
+          return;
+        }
+        // Drop bindings for campaigns that no longer exist (deleted in the
+        // app) — otherwise a stale binding shows a permission banner forever.
+        const listRes = await fetch("/api/backend/campaigns");
+        if (listRes.ok) {
+          const alive = new Set(
+            ((await listRes.json()) as { id: number }[]).map((c) => c.id),
+          );
+          for (const b of bindings.filter((b) => !alive.has(b.campaignId))) {
+            await removeBinding(b.campaignId);
+          }
+          bindings = bindings.filter((b) => alive.has(b.campaignId));
+        }
         const needsGrant: PendingGrant[] = [];
         for (const { campaignId, handle } of bindings) {
           const perm =
