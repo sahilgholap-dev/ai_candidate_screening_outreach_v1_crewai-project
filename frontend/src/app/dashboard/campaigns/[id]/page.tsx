@@ -11,6 +11,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
+import { moveBinding } from "@/lib/folder-watch";
 
 type Judgments = {
   required_skills: { skill: string; present: boolean; core: boolean }[];
@@ -400,7 +401,9 @@ export default function CampaignDetailPage({
   const rerun = useMutation({
     mutationFn: () =>
       api<{ campaign_id: number }>(`/campaigns/${id}/rerun`, { method: "POST" }),
-    onSuccess: (res) => {
+    onSuccess: async (res) => {
+      // A watched folder follows the newest clone; the original stops.
+      await moveBinding(Number(id), res.campaign_id);
       queryClient.invalidateQueries({ queryKey: ["campaigns"] });
       router.push(`/dashboard/campaigns/${res.campaign_id}`);
     },
