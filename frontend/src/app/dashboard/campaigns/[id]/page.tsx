@@ -51,6 +51,8 @@ type CampaignDetail = {
     threshold: number;
     region: string | null;
     error_message: string | null;
+    intake_mode: "upload" | "folder";
+    folder_name: string | null;
   };
   candidates: CandidateRow[];
   processed_count: number;
@@ -382,7 +384,10 @@ export default function CampaignDetailPage({
     queryFn: () => api(`/campaigns/${id}`),
     refetchInterval: (query) => {
       const s = query.state.data?.campaign.status;
-      return s === "Processing" || s === "Queued" ? 5000 : false;
+      if (s === "Processing" || s === "Queued") return 5000;
+      // Watched-folder campaigns can go Queued at any time (new file drop)
+      const mode = query.state.data?.campaign.intake_mode;
+      return mode === "folder" ? 15000 : false;
     },
   });
 
@@ -493,6 +498,14 @@ export default function CampaignDetailPage({
             <span className="data-value text-muted-foreground">
               cut-off {campaign.threshold} · {campaign.region ?? "—"}
             </span>
+            {campaign.intake_mode === "folder" && (
+              <span className="text-muted-foreground">
+                📁 Watching “{campaign.folder_name ?? "folder"}”
+                {campaign.status === "Watching"
+                  ? " — waiting for the first resumes to appear in the folder."
+                  : " — new resumes in this folder are screened automatically while the app is open."}
+              </span>
+            )}
             {processing && data && (
               <span className="flex items-center gap-2 text-muted-foreground">
                 <span className="h-2 w-2 animate-pulse rounded-full bg-verdict-hold" />

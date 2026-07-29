@@ -22,6 +22,7 @@ const STATUS_STYLE: Record<string, string> = {
   Error: "bg-verdict-fail-soft text-verdict-fail border-verdict-fail/25",
   Processing: "bg-verdict-hold-soft text-verdict-hold border-verdict-hold/25",
   Queued: "bg-muted text-muted-foreground border-border",
+  Watching: "bg-sky-50 text-sky-700 border-sky-200",
 };
 
 export default function DashboardHome() {
