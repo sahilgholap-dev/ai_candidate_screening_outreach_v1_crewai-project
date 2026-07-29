@@ -349,17 +349,6 @@ def build_hard_filter_rules(profile: RequirementsProfileV1 | None) -> str:
                     f"- Required: {'; '.join(parts)}.\n"
                     "- FAIL only on explicit contradicting evidence. UNKNOWN when the resume is silent.",
                 )
-        if profile.gender_eligibility != "any":
-            who = "women" if profile.gender_eligibility == "women_only" else "men"
-            hf(
-                "Gender eligibility (lawful restriction — justification on file)",
-                f"- This role is restricted to {who} ({profile.gender_justification}).\n"
-                "- Gender may be established ONLY from an explicit statement on the resume "
-                "(e.g. a 'Gender:' field, salutation such as Ms./Mrs./Mr., or explicit pronouns in a self-summary).\n"
-                "- NEVER infer gender from the candidate's name, photo, or anything else.\n"
-                "- FAIL only when the resume explicitly states a non-matching gender.\n"
-                "- UNKNOWN when gender is not explicitly stated — add 'gender_eligibility' to needs_info; NEVER reject.",
-            )
 
     header = (
         "Permitted hard filter reasons — ONLY the following, no others may ever be invented:\n\n"

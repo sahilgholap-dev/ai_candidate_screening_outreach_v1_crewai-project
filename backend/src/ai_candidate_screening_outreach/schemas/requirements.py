@@ -150,18 +150,10 @@ class RequirementsProfileV1(BaseModel):
     dealbreakers: Optional[str] = Field(default=None, max_length=2000)
     max_shortlist: Optional[int] = Field(default=None, ge=1, le=500)
 
-    # ---- 10. Eligibility (company-flag gated; audit-logged) ----
-    gender_eligibility: Literal["any", "women_only", "men_only"] = "any"
-    gender_justification: Optional[str] = Field(default=None, max_length=1000)
-
     @model_validator(mode="after")
     def _validate(self):
         if self.weight_preset == "custom" and self.custom_weights is None:
             raise ValueError("custom_weights is required when weight_preset is 'custom'")
-        if self.gender_eligibility != "any" and not (self.gender_justification or "").strip():
-            raise ValueError(
-                "A written justification is required for gender-restricted campaigns"
-            )
         if (
             self.budget_min is not None
             and self.budget_max is not None

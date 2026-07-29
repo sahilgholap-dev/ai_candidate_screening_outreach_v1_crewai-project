@@ -118,7 +118,6 @@ async def my_company(
         "name": company.name,
         "default_region": company.default_region,
         "default_threshold": company.default_threshold,
-        "allow_gender_eligibility": company.allow_gender_eligibility,
         "office_locations": company.office_locations or [],
     }
 
@@ -162,14 +161,6 @@ async def create_campaign(
             profile = RequirementsProfileV1.model_validate_json(requirements)
         except ValueError as e:
             raise HTTPException(status_code=422, detail=f"Invalid requirements: {e}")
-        # Gender eligibility is admin-gated per company and always justified
-        if profile.gender_eligibility != "any" and not (
-            company and company.allow_gender_eligibility
-        ):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Gender-restricted campaigns are not enabled for this company",
-            )
         requirements_data = profile.model_dump(mode="json")
 
     campaign_region = (region or (company.default_region if company else "IN")).upper()
@@ -229,8 +220,6 @@ async def create_campaign(
             "name": new_campaign.name,
             "region": new_campaign.region,
             "resumes": len(resume_files),
-            "gender_eligibility": (requirements_data or {}).get("gender_eligibility", "any"),
-            "gender_justification": (requirements_data or {}).get("gender_justification"),
         },
     )
     db.commit()

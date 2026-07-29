@@ -36,9 +36,6 @@ parse_candidate_resumes:
 
     - **Education** (degree, field of study, institution, graduation year)
 
-    - **Explicitly stated gender, if any** (ONLY from an explicit "Gender:" field,
-    salutation, or self-described pronouns — never inferred; record "Not stated" otherwise)
-
     - **Stated compensation expectation, if any** (never salary history)
 
     - **Stated notice period / availability, if any**
@@ -128,9 +125,7 @@ evaluate_and_score_candidates:
 
     Evaluate ONLY on job-relevant criteria. NEVER consider age, gender, ethnicity,
     nationality, name origin, graduation year as an age proxy, or any other protected
-    attribute. (The single exception: when a lawful gender-eligibility hard filter
-    is explicitly listed in Step 1, apply it exactly as written there — as an eligibility
-    gate only, never as a scoring input.)'
+    attribute.'
   expected_output: 'A structured response with one evaluation per unique candidate:
     candidate_id (the provided numeric ID, never renumbered), name, hard_filter_failed,
     required_skill_judgments, preferred_skill_judgments, must_have_judgments,

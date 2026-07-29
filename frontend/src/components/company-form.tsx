@@ -15,7 +15,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Company } from "@/lib/api";
 
@@ -27,7 +26,6 @@ const companySchema = z.object({
   recruiter_signature: z.string().optional(),
   tone_notes: z.string().optional(),
   default_threshold: z.number().min(0).max(100),
-  allow_gender_eligibility: z.boolean(),
   data_retention_days: z
     .string()
     .optional()
@@ -46,7 +44,6 @@ export type CompanyPayload = {
   recruiter_signature: string | null;
   tone_notes: string | null;
   default_threshold: number;
-  allow_gender_eligibility: boolean;
   data_retention_days: number | null;
 };
 
@@ -62,7 +59,6 @@ export function toPayload(values: CompanyFormValues): CompanyPayload {
     recruiter_signature: values.recruiter_signature?.trim() || null,
     tone_notes: values.tone_notes?.trim() || null,
     default_threshold: values.default_threshold,
-    allow_gender_eligibility: values.allow_gender_eligibility,
     data_retention_days: values.data_retention_days
       ? Number(values.data_retention_days)
       : null,
@@ -95,7 +91,6 @@ export function CompanyForm({
       recruiter_signature: initial?.recruiter_signature ?? "",
       tone_notes: initial?.tone_notes ?? "",
       default_threshold: initial?.default_threshold ?? 65,
-      allow_gender_eligibility: initial?.allow_gender_eligibility ?? false,
       data_retention_days: initial?.data_retention_days?.toString() ?? "",
     },
   });
@@ -216,33 +211,6 @@ export function CompanyForm({
             {...register("data_retention_days")}
           />
         </div>
-      </div>
-
-      <div className="flex items-start justify-between rounded-lg border p-4">
-        <div className="pr-4">
-          <Label htmlFor="allow_gender_eligibility" className="font-medium">
-            Allow gender-restricted campaigns
-          </Label>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Permits this company to mark a campaign as women-only / men-only.
-            Lawful for certain roles in India; in the US/UK only under narrow
-            BFOQ / Genuine Occupational Requirement rules. Each restricted
-            campaign requires a written justification and is audit-logged.
-            Candidates whose resume does not explicitly state gender are never
-            auto-rejected — they are routed to human review.
-          </p>
-        </div>
-        <Controller
-          control={control}
-          name="allow_gender_eligibility"
-          render={({ field }) => (
-            <Switch
-              id="allow_gender_eligibility"
-              checked={field.value}
-              onCheckedChange={field.onChange}
-            />
-          )}
-        />
       </div>
 
       {serverError && <p className="text-sm text-destructive">{serverError}</p>}

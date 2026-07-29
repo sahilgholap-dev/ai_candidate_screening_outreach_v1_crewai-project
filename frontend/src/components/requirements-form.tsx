@@ -227,8 +227,6 @@ export function RequirementsForm({
     v: RequirementsProfile[K],
   ) => onChange({ ...value, [key]: v });
 
-  const showGender = company.allow_gender_eligibility;
-
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">
@@ -820,53 +818,6 @@ export function RequirementsForm({
           />
         </Field>
       </Section>
-
-      {/* 10. Eligibility (gated) */}
-      {showGender && (
-        <Section
-          title="Gender eligibility"
-          hint="Restricted campaigns require written justification and are audit-logged"
-        >
-          {region !== "IN" && (
-            <p className="rounded-md bg-amber-50 p-3 text-xs text-amber-900">
-              Outside India, restricting by gender is lawful only under narrow
-              BFOQ (US) / Genuine Occupational Requirement (UK) rules. Confirm
-              with legal counsel before using this.
-            </p>
-          )}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Eligibility">
-              <EnumSelect
-                value={value.gender_eligibility === "any" ? null : value.gender_eligibility}
-                onChange={(v) => set("gender_eligibility", v ?? "any")}
-                options={[
-                  ["women_only", "Women only"],
-                  ["men_only", "Men only"],
-                ]}
-                placeholder="Any (no restriction)"
-              />
-            </Field>
-          </div>
-          {value.gender_eligibility !== "any" && (
-            <>
-              <Field label="Justification (required)">
-                <Textarea
-                  rows={2}
-                  placeholder="Nature of the role requiring this restriction"
-                  value={value.gender_justification ?? ""}
-                  onChange={(e) => set("gender_justification", e.target.value || null)}
-                />
-              </Field>
-              <p className="text-xs text-muted-foreground">
-                Gender is only ever read from an explicit statement on the
-                resume (e.g. &quot;Gender: Female&quot;). It is never inferred
-                from names or photos. Candidates without an explicit statement
-                are routed to human review — never rejected.
-              </p>
-            </>
-          )}
-        </Section>
-      )}
     </div>
   );
 }

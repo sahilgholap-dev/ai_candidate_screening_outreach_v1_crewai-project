@@ -26,7 +26,7 @@ type AuditEntry = {
 function actionVariant(action: string) {
   if (action.startsWith("retention") || action.includes("deleted"))
     return "destructive" as const;
-  if (action.includes("gender") || action.includes("approved"))
+  if (action.includes("approved"))
     return "default" as const;
   return "secondary" as const;
 }

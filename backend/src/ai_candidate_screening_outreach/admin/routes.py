@@ -28,7 +28,6 @@ class CompanyBase(BaseModel):
     recruiter_signature: str | None = None
     tone_notes: str | None = None
     default_threshold: float = Field(default=65.0, ge=0, le=100)
-    allow_gender_eligibility: bool = False
     data_retention_days: int | None = Field(default=None, ge=1)
 
     @field_validator("default_region")
@@ -52,7 +51,6 @@ class CompanyUpdate(BaseModel):
     recruiter_signature: str | None = None
     tone_notes: str | None = None
     default_threshold: float | None = Field(default=None, ge=0, le=100)
-    allow_gender_eligibility: bool | None = None
     data_retention_days: int | None = Field(default=None, ge=1)
     is_active: bool | None = None
 
@@ -169,7 +167,7 @@ def create_company(
         "company.created",
         user=admin,
         company_id=company.id,
-        detail={"name": company.name, "allow_gender_eligibility": company.allow_gender_eligibility},
+        detail={"name": company.name},
     )
     db.commit()
     db.refresh(company)

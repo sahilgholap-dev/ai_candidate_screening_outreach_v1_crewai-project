@@ -39,7 +39,6 @@ export type Company = {
   recruiter_signature: string | null;
   tone_notes: string | null;
   default_threshold: number;
-  allow_gender_eligibility: boolean;
   data_retention_days: number | null;
   is_active: boolean;
   created_at: string | null;

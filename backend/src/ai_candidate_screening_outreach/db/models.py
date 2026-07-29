@@ -153,9 +153,6 @@ class Company(Base):
     recruiter_signature = Column(Text, nullable=True)
     tone_notes = Column(Text, nullable=True)
     default_threshold = Column(Float, default=65.0)
-    # Admin-controlled: whether this company may set gender eligibility on
-    # campaigns (lawful for certain roles in India; narrow BFOQ/GOR elsewhere).
-    allow_gender_eligibility = Column(Boolean, default=False, nullable=False)
     data_retention_days = Column(Integer, nullable=True)  # candidate data purge horizon
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), default=utcnow)
@@ -211,7 +208,7 @@ class Campaign(Base):
 
 class AuditLog(Base):
     """Who did what, when — compliance trail for sensitive actions
-    (gender-restricted campaigns, outreach approvals, retention purges, ...)."""
+    (outreach approvals, retention purges, ...)."""
 
     __tablename__ = "audit_log"
 

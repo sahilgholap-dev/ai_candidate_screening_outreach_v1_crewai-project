@@ -69,11 +69,6 @@ export default function NewCampaignPage() {
     if (!jdFile) return setError("Upload a job description file");
     if (!resumeFiles || resumeFiles.length === 0)
       return setError("Upload at least one resume");
-    if (
-      requirements.gender_eligibility !== "any" &&
-      !requirements.gender_justification?.trim()
-    )
-      return setError("Gender-restricted campaigns require a justification");
 
     setSubmitting(true);
     try {

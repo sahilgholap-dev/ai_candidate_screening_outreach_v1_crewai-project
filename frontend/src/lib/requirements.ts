@@ -87,9 +87,6 @@ export type RequirementsProfile = {
   custom_weights: CustomWeights | null;
   dealbreakers: string | null;
   max_shortlist: number | null;
-  // 10. Eligibility
-  gender_eligibility: "any" | "women_only" | "men_only";
-  gender_justification: string | null;
 };
 
 export function defaultRequirements(): RequirementsProfile {
@@ -158,8 +155,6 @@ export function defaultRequirements(): RequirementsProfile {
     custom_weights: null,
     dealbreakers: null,
     max_shortlist: null,
-    gender_eligibility: "any",
-    gender_justification: null,
   };
 }
 
@@ -168,6 +163,5 @@ export type MyCompany = {
   name: string;
   default_region: "US" | "UK" | "IN";
   default_threshold: number;
-  allow_gender_eligibility: boolean;
   office_locations: string[];
 };
