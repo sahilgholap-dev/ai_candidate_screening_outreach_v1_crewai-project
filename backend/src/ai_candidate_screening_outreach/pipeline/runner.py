@@ -13,6 +13,7 @@ Executed by the queue worker (queue_worker.py). Structure per campaign:
    aggregated, outputs archived under outputs/campaign_<id>/.
 """
 
+import hashlib
 import json
 import os
 import re
@@ -89,6 +90,16 @@ def _contact_keys(text: str) -> set[str]:
         if len(digits) >= 10:
             keys.add(digits[-10:])  # last 10 digits normalizes country codes
     return keys
+
+
+def rubric_key(jd_text: str, profile: RequirementsProfileV1 | None) -> str:
+    """Identical (JD, requirements) inputs -> identical key, so campaigns can
+    share a Stage 1 rubric and score against a byte-identical checklist.
+    The profile is canonicalized through the schema (fixed field order;
+    unknown/legacy keys already dropped by validation)."""
+    canonical = profile.model_dump_json() if profile else ""
+    payload = (jd_text or "").strip() + "\x00" + canonical
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 def _partition_candidates(candidates: list[Candidate]) -> list[Candidate]:
@@ -244,6 +255,36 @@ def run_campaign(campaign_id: int) -> None:
                 )
             except ValueError:
                 unified_profile = None  # stored shape outdated: regenerate
+        campaign.rubric_key = rubric_key(campaign.jd_text, profile)
+        db.commit()
+        if unified_profile is None:
+            # Same company + same (JD, requirements) -> reuse the existing
+            # rubric so identical inputs score identically across campaigns.
+            donor = (
+                db.query(Campaign)
+                .filter(
+                    Campaign.company_id == campaign.company_id,
+                    Campaign.rubric_key == campaign.rubric_key,
+                    Campaign.unified_profile.isnot(None),
+                    Campaign.id != campaign.id,
+                )
+                .order_by(Campaign.id.desc())
+                .first()
+            )
+            if donor is not None:
+                try:
+                    unified_profile = UnifiedRequirements.model_validate(
+                        donor.unified_profile
+                    )
+                    campaign.unified_profile = donor.unified_profile
+                    db.commit()
+                    print(
+                        f"[pipeline] campaign {campaign_id} reusing rubric "
+                        f"from campaign {donor.id}",
+                        flush=True,
+                    )
+                except ValueError:
+                    unified_profile = None  # donor shape outdated: regenerate
         if unified_profile is None:
             recruiter_block = build_recruiter_requirements_block(profile, region)
             stage1 = RequirementsCrew().crew().kickoff(
