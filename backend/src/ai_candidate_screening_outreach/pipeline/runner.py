@@ -91,6 +91,33 @@ def _contact_keys(text: str) -> set[str]:
     return keys
 
 
+def _partition_candidates(candidates: list[Candidate]) -> list[Candidate]:
+    """Contact-dedup across ALL candidates; return only unscreened ones.
+
+    Screened = has a score or any recommendation (incl. "Duplicate").
+    Screened candidates still register their contact keys so a new resume
+    duplicating an old candidate is caught.
+    """
+    seen: dict[str, int] = {}
+    to_process: list[Candidate] = []
+    for candidate in candidates:
+        screened = candidate.score is not None or bool(candidate.recommendation)
+        keys = _contact_keys(candidate.parsed_text)
+        dup_of = next((seen[k] for k in keys if k in seen), None)
+        if dup_of is not None and not screened:
+            candidate.recommendation = "Duplicate"
+            candidate.rationale = (
+                f"Duplicate resume — same contact details as candidate #{dup_of}."
+            )
+            candidate.score = None
+            continue
+        for k in keys:
+            seen.setdefault(k, candidate.id)
+        if not screened:
+            to_process.append(candidate)
+    return to_process
+
+
 def _final_recommendation(ev, threshold: float, maybe_band: int) -> tuple[int, str]:
     """Boundary math is code, not LLM output. The model supplies the score and
     evidence; the Shortlist/Maybe/Reject verdict is recomputed deterministically."""
@@ -195,22 +222,8 @@ def run_campaign(campaign_id: int) -> None:
                         candidate.parsed_text = _extract_file_text(file_path)
             db.commit()
 
-        # ---- 2. Cross-campaign dedup by email/phone ----
-        seen: dict[str, int] = {}
-        to_process: list[Candidate] = []
-        for candidate in candidates:
-            keys = _contact_keys(candidate.parsed_text)
-            dup_of = next((seen[k] for k in keys if k in seen), None)
-            if dup_of is not None:
-                candidate.recommendation = "Duplicate"
-                candidate.rationale = (
-                    f"Duplicate resume — same contact details as candidate #{dup_of}."
-                )
-                candidate.score = None
-                continue
-            for k in keys:
-                seen[k] = candidate.id
-            to_process.append(candidate)
+        # ---- 2. Cross-candidate dedup by email/phone; skip already-screened ----
+        to_process = _partition_candidates(candidates)
         db.commit()
 
         output_dir = os.path.join("outputs", f"campaign_{campaign_id}")
@@ -397,12 +410,32 @@ def run_campaign(campaign_id: int) -> None:
         # ---- 5. Finalize ----
         if failed_chunks:
             final_content += f"\n\n> Note: {failed_chunks} of {total_chunks} batches failed processing.\n"
-        campaign.final_report = final_content
+        if campaign.final_report and to_process:
+            # Incremental run: keep the original report, append the new batch.
+            campaign.final_report += (
+                f"\n\n---\n\n# Incremental run ({len(to_process)} new candidate(s))\n\n"
+                + final_content
+            )
+        elif to_process or not campaign.final_report:
+            campaign.final_report = final_content
         campaign.token_usage = total_usage
         campaign.finished_at = utcnow()
-        campaign.status = (
-            "Error" if total_chunks > 0 and failed_chunks == total_chunks else "Completed"
+        # Fresh COUNT query — sees candidates the API committed while we ran.
+        arrived_mid_run = (
+            db.query(Candidate)
+            .filter(
+                Candidate.campaign_id == campaign_id,
+                Candidate.score.is_(None),
+                Candidate.recommendation.is_(None),
+            )
+            .count()
         )
+        if total_chunks > 0 and failed_chunks == total_chunks:
+            campaign.status = "Error"
+        elif arrived_mid_run:
+            campaign.status = "Queued"  # back of the line for the newcomers
+        else:
+            campaign.status = "Completed"
         db.commit()
 
         if upload_dir and os.path.exists(upload_dir):
