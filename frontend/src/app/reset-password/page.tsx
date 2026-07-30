@@ -6,14 +6,8 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
+import { AuthBrand, AuthPage } from "@/components/auth-card";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -61,24 +55,9 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <div className="mb-2 flex items-baseline gap-1.5">
-            <span className="font-display text-lg font-bold tracking-tight text-primary">
-              NEXUS
-            </span>
-            <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-              screening
-            </span>
-          </div>
-          <CardTitle className="font-display">Set a new password</CardTitle>
-          <CardDescription>
-            You must change your password before continuing.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <AuthPage>
+      <AuthBrand tag="Set a new password before continuing" />
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="current_password">Current password</Label>
               <Input
@@ -124,12 +103,10 @@ export default function ResetPasswordPage() {
             {serverError && (
               <p className="text-sm text-destructive">{serverError}</p>
             )}
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? "Saving…" : "Save new password"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-    </main>
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
+          {isSubmitting ? "Saving…" : "Save new password"}
+        </Button>
+      </form>
+    </AuthPage>
   );
 }

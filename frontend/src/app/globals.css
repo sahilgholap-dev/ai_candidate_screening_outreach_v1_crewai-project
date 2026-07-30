@@ -48,6 +48,10 @@
   --color-verdict-fail-soft: var(--verdict-fail-soft);
   --color-ink: var(--ink);
   --color-ink-soft: var(--ink-soft);
+  --color-band-blue: var(--band-blue);
+  --color-band-blue-soft: var(--band-blue-soft);
+  --color-gray-soft: var(--gray-soft);
+  --color-text-light: var(--text-light);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -58,90 +62,54 @@
 }
 
 :root {
-  /* Porcelain canvas with a cool green-gray cast; petrol ink; verdigris action */
-  --background: oklch(0.972 0.004 170);
-  --foreground: oklch(0.27 0.03 210);
-  --card: oklch(0.995 0.002 170);
-  --card-foreground: oklch(0.27 0.03 210);
-  --popover: oklch(0.995 0.002 170);
-  --popover-foreground: oklch(0.27 0.03 210);
-  --primary: oklch(0.46 0.077 183);
-  --primary-foreground: oklch(0.985 0.005 170);
-  --secondary: oklch(0.945 0.008 178);
-  --secondary-foreground: oklch(0.34 0.045 195);
-  --muted: oklch(0.945 0.006 175);
-  --muted-foreground: oklch(0.52 0.02 200);
-  --accent: oklch(0.93 0.02 178);
-  --accent-foreground: oklch(0.32 0.05 190);
-  --destructive: oklch(0.55 0.18 27);
-  --border: oklch(0.9 0.008 180);
-  --input: oklch(0.89 0.01 180);
-  --ring: oklch(0.52 0.08 183);
-  --chart-1: oklch(0.52 0.09 183);
-  --chart-2: oklch(0.66 0.11 165);
-  --chart-3: oklch(0.75 0.12 80);
-  --chart-4: oklch(0.55 0.18 27);
-  --chart-5: oklch(0.4 0.05 210);
-  --radius: 0.5rem;
-  --sidebar: oklch(0.25 0.032 205);
-  --sidebar-foreground: oklch(0.9 0.012 180);
-  --sidebar-primary: oklch(0.72 0.1 172);
-  --sidebar-primary-foreground: oklch(0.2 0.03 205);
-  --sidebar-accent: oklch(0.31 0.036 202);
-  --sidebar-accent-foreground: oklch(0.96 0.008 175);
-  --sidebar-border: oklch(0.33 0.03 202);
-  --sidebar-ring: oklch(0.72 0.1 172);
-  /* Verdicts */
-  --verdict-pass: oklch(0.5 0.1 168);
-  --verdict-pass-soft: oklch(0.94 0.035 168);
-  --verdict-hold: oklch(0.62 0.115 75);
-  --verdict-hold-soft: oklch(0.96 0.045 85);
-  --verdict-fail: oklch(0.55 0.16 27);
-  --verdict-fail-soft: oklch(0.95 0.025 27);
-  --ink: oklch(0.25 0.032 205);
-  --ink-soft: oklch(0.34 0.035 202);
-}
-
-.dark {
-  --background: oklch(0.2 0.025 208);
-  --foreground: oklch(0.93 0.01 175);
-  --card: oklch(0.24 0.028 206);
-  --card-foreground: oklch(0.93 0.01 175);
-  --popover: oklch(0.24 0.028 206);
-  --popover-foreground: oklch(0.93 0.01 175);
-  --primary: oklch(0.72 0.1 172);
-  --primary-foreground: oklch(0.2 0.03 205);
-  --secondary: oklch(0.29 0.03 204);
-  --secondary-foreground: oklch(0.93 0.01 175);
-  --muted: oklch(0.29 0.028 204);
-  --muted-foreground: oklch(0.68 0.015 190);
-  --accent: oklch(0.32 0.035 200);
-  --accent-foreground: oklch(0.93 0.01 175);
-  --destructive: oklch(0.62 0.17 25);
-  --border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 16%);
-  --ring: oklch(0.72 0.1 172);
-  --chart-1: oklch(0.72 0.1 172);
-  --chart-2: oklch(0.66 0.11 165);
-  --chart-3: oklch(0.75 0.12 80);
-  --chart-4: oklch(0.62 0.17 25);
-  --chart-5: oklch(0.8 0.02 190);
-  --sidebar: oklch(0.17 0.024 208);
-  --sidebar-foreground: oklch(0.9 0.012 180);
-  --sidebar-primary: oklch(0.72 0.1 172);
-  --sidebar-primary-foreground: oklch(0.17 0.024 208);
-  --sidebar-accent: oklch(0.26 0.03 204);
-  --sidebar-accent-foreground: oklch(0.96 0.008 175);
-  --sidebar-border: oklch(0.28 0.028 204);
-  --sidebar-ring: oklch(0.72 0.1 172);
-  --verdict-pass: oklch(0.68 0.11 168);
-  --verdict-pass-soft: oklch(0.32 0.05 168);
-  --verdict-hold: oklch(0.75 0.12 80);
-  --verdict-hold-soft: oklch(0.33 0.05 85);
-  --verdict-fail: oklch(0.66 0.16 27);
-  --verdict-fail-soft: oklch(0.32 0.05 27);
-  --ink: oklch(0.17 0.024 208);
-  --ink-soft: oklch(0.26 0.03 204);
+  /* NEXUS Talent Match palette — mirrors HR_Agent_Client_UI_Mockup_v1.html.
+     Light-only: the mockup design has no dark theme. */
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #10b981;
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f172a;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #d1fae5;
+  --accent-foreground: #065f46;
+  --destructive: #ef4444;
+  --border: #e2e8f0;
+  --input: #cbd5e1;
+  --ring: #10b981;
+  --chart-1: #10b981;
+  --chart-2: #3b82f6;
+  --chart-3: #f59e0b;
+  --chart-4: #ef4444;
+  --chart-5: #64748b;
+  --radius: 0.625rem;
+  --sidebar: #0a1f1a;
+  --sidebar-foreground: #cbd5e1;
+  --sidebar-primary: #10b981;
+  --sidebar-primary-foreground: #052e23;
+  --sidebar-accent: #143329;
+  --sidebar-accent-foreground: #f1f5f9;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-ring: #10b981;
+  /* Verdicts (band colors) */
+  --verdict-pass: #10b981;
+  --verdict-pass-soft: #d1fae5;
+  --verdict-hold: #f59e0b;
+  --verdict-hold-soft: #fef3c7;
+  --verdict-fail: #ef4444;
+  --verdict-fail-soft: #fee2e2;
+  --ink: #0a1f1a;
+  --ink-soft: #143329;
+  /* Mockup extras */
+  --band-blue: #3b82f6;
+  --band-blue-soft: #dbeafe;
+  --gray-soft: #f1f5f9;
+  --text-light: #94a3b8;
 }
 
 @layer base {
