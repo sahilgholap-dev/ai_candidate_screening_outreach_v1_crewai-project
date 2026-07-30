@@ -177,4 +177,7 @@ export type MyCompany = {
   default_region: "US" | "UK" | "IN";
   default_threshold: number;
   office_locations: string[];
+  recruiter_signature: string | null;
+  tone_notes: string | null;
+  data_retention_days: number | null;
 };

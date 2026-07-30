@@ -128,6 +128,9 @@ async def my_company(
         "default_region": company.default_region,
         "default_threshold": company.default_threshold,
         "office_locations": company.office_locations or [],
+        "recruiter_signature": company.recruiter_signature,
+        "tone_notes": company.tone_notes,
+        "data_retention_days": company.data_retention_days,
     }
 
 
