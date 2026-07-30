@@ -195,7 +195,7 @@ async def list_campaigns(
 @app.post("/api/campaigns")
 async def create_campaign(
     campaign_name: str = Form(...),
-    threshold: float = Form(65.0),
+    threshold: float | None = Form(None),  # None -> company default
     region: str | None = Form(None),
     requirements: str | None = Form(None),  # JSON-encoded RequirementsProfileV1
     jd_file: UploadFile = File(...),
@@ -235,6 +235,8 @@ async def create_campaign(
             raise HTTPException(status_code=422, detail=f"Invalid requirements: {e}")
         requirements_data = profile.model_dump(mode="json")
 
+    if threshold is None:
+        threshold = (company.default_threshold if company else None) or 65.0
     campaign_region = (region or (company.default_region if company else "IN")).upper()
     if campaign_region not in {"US", "UK", "IN"}:
         raise HTTPException(status_code=422, detail="region must be US, UK or IN")

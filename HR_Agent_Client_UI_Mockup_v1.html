@@ -1,0 +1,1806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>NEXUS Talent Match — Client UI Mockup v1</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --nav-bg: #0A1F1A;
+  --nav-hover: #143329;
+  --accent: #10B981;
+  --accent-hover: #059669;
+  --accent-soft: #D1FAE5;
+  --page-bg: #F8FAFC;
+  --card-bg: #FFFFFF;
+  --border: #E2E8F0;
+  --border-strong: #CBD5E1;
+  --text: #0F172A;
+  --text-muted: #64748B;
+  --text-light: #94A3B8;
+  --danger: #EF4444;
+  --danger-soft: #FEE2E2;
+  --amber: #F59E0B;
+  --amber-soft: #FEF3C7;
+  --blue: #3B82F6;
+  --blue-soft: #DBEAFE;
+  --gray-soft: #F1F5F9;
+  --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-lg: 0 10px 25px rgba(0,0,0,0.08), 0 4px 10px rgba(0,0,0,0.04);
+}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+  background: var(--page-bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+.app { display: flex; min-height: 100vh; }
+
+/* ---------- Sidebar ---------- */
+.sidebar {
+  width: 240px;
+  background: var(--nav-bg);
+  color: #E2E8F0;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  padding: 22px 0;
+}
+.brand {
+  padding: 0 22px 24px 22px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  margin-bottom: 16px;
+}
+.brand-logo {
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--accent);
+  font-weight: 700;
+  margin-bottom: 3px;
+}
+.brand-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #F1F5F9;
+  letter-spacing: -0.2px;
+}
+.nav { flex: 1; padding: 0 12px; }
+.nav-section-label {
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #64748B;
+  padding: 12px 10px 8px 10px;
+  font-weight: 600;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  margin: 2px 0;
+  border-radius: 6px;
+  color: #CBD5E1;
+  cursor: pointer;
+  font-size: 13.5px;
+  font-weight: 500;
+  transition: background 0.12s;
+}
+.nav-item:hover { background: var(--nav-hover); color: #F1F5F9; }
+.nav-item.active { background: var(--nav-hover); color: #FFF; }
+.nav-item .icon { width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; }
+.nav-item .badge {
+  margin-left: auto;
+  background: var(--accent);
+  color: #052E23;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 999px;
+}
+.user-box {
+  padding: 14px 18px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.avatar {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+  display: flex; align-items: center; justify-content: center;
+  color: #FFF; font-weight: 600; font-size: 13px;
+  flex-shrink: 0;
+}
+.user-info { flex: 1; min-width: 0; }
+.user-name { font-size: 13px; color: #F1F5F9; font-weight: 500; }
+.user-role { font-size: 11px; color: #94A3B8; }
+.signout {
+  font-size: 11px; color: #94A3B8; cursor: pointer; padding: 4px 8px;
+  border-radius: 4px;
+}
+.signout:hover { background: var(--nav-hover); color: #F1F5F9; }
+
+/* ---------- Main area ---------- */
+.main {
+  flex: 1;
+  overflow-y: auto;
+  min-width: 0;
+}
+.topbar {
+  background: #FFF;
+  border-bottom: 1px solid var(--border);
+  padding: 14px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.page-title {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+}
+.page-subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.content { padding: 26px 32px 60px 32px; max-width: 1200px; }
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: 6px;
+  font-size: 13.5px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.12s;
+  background: #FFF;
+  color: var(--text);
+  border-color: var(--border-strong);
+  font-family: inherit;
+}
+.btn:hover { border-color: #94A3B8; }
+.btn-primary {
+  background: var(--accent);
+  color: #FFF;
+  border-color: var(--accent);
+}
+.btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.btn-danger {
+  background: #FFF;
+  color: var(--danger);
+  border-color: #FCA5A5;
+}
+.btn-danger:hover { background: var(--danger-soft); }
+.btn-sm { padding: 6px 12px; font-size: 12.5px; }
+.btn-ghost { background: transparent; border-color: transparent; color: var(--text-muted); }
+.btn-ghost:hover { background: var(--gray-soft); color: var(--text); }
+
+/* ---------- Cards / panels ---------- */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 22px 24px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow);
+}
+.card-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.card-title { font-size: 15px; font-weight: 600; letter-spacing: -0.2px; }
+.card-sub { font-size: 12.5px; color: var(--text-muted); margin-bottom: 18px; }
+
+/* ---------- Forms ---------- */
+.form-row {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.form-row-2 { grid-template-columns: 1fr 1fr; }
+.form-row-3 { grid-template-columns: 2fr 1fr 1fr; }
+.form-field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 6px;
+  color: var(--text);
+}
+.form-field .hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.form-field input[type="text"],
+.form-field input[type="number"],
+.form-field textarea,
+.form-field select {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  font-size: 13.5px;
+  font-family: inherit;
+  background: #FFF;
+  color: var(--text);
+}
+.form-field input:focus,
+.form-field textarea:focus,
+.form-field select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.form-field textarea { min-height: 72px; resize: vertical; }
+.file-drop {
+  border: 2px dashed var(--border-strong);
+  border-radius: 8px;
+  padding: 22px;
+  text-align: center;
+  background: var(--gray-soft);
+  cursor: pointer;
+}
+.file-drop:hover { border-color: var(--accent); background: var(--accent-soft); }
+.file-drop .file-icon { font-size: 24px; color: var(--text-muted); margin-bottom: 6px; }
+.file-drop .file-primary { font-size: 13.5px; font-weight: 500; color: var(--text); }
+.file-drop .file-secondary { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+
+/* ---------- Accordion sections ---------- */
+.section {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 10px;
+  background: #FFF;
+  overflow: hidden;
+}
+.section-head {
+  padding: 14px 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.section-head:hover { background: #FAFBFC; }
+.section-head-left { flex: 1; }
+.section-title { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+.section-desc { font-size: 12.5px; color: var(--text-muted); }
+.section-head-right { display: flex; align-items: center; gap: 12px; }
+.mode-pill {
+  font-size: 11.5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-weight: 500;
+  border: 1px solid var(--border-strong);
+  background: #FFF;
+  color: var(--text-muted);
+}
+.mode-pill.hard { color: var(--danger); border-color: #FCA5A5; background: var(--danger-soft); }
+.mode-pill.pref { color: var(--blue); border-color: #BFDBFE; background: var(--blue-soft); }
+.mode-pill.off { color: var(--text-light); }
+.chev {
+  color: var(--text-light);
+  font-size: 14px;
+  transition: transform 0.15s;
+}
+.section.expanded .chev { transform: rotate(90deg); }
+.section-body {
+  padding: 4px 18px 20px 18px;
+  border-top: 1px solid var(--border);
+  display: none;
+}
+.section.expanded .section-body { display: block; }
+
+/* ---------- Chips input ---------- */
+.chips-input {
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  padding: 6px 8px;
+  min-height: 40px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+  background: #FFF;
+}
+.chip {
+  background: var(--gray-soft);
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 12.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.chip .x { color: var(--text-light); cursor: pointer; font-size: 14px; }
+.chip.strong { background: var(--accent-soft); color: #065F46; }
+.chips-input input {
+  border: none;
+  outline: none;
+  padding: 4px;
+  font-size: 13px;
+  min-width: 100px;
+  flex: 1;
+  background: transparent;
+}
+
+/* ---------- Info banner ---------- */
+.banner {
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: var(--blue-soft);
+  border: 1px solid #BFDBFE;
+  margin-bottom: 20px;
+  font-size: 13px;
+  color: #1E3A8A;
+}
+.banner.warn { background: var(--amber-soft); border-color: #FDE68A; color: #78350F; }
+.banner-icon { font-size: 18px; flex-shrink: 0; line-height: 1.2; }
+
+/* ---------- Search library ---------- */
+.searches-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #FFF;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.searches-table th {
+  text-align: left;
+  padding: 12px 16px;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: #FAFBFC;
+  border-bottom: 1px solid var(--border);
+}
+.searches-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13.5px;
+  vertical-align: middle;
+}
+.searches-table tr:last-child td { border-bottom: none; }
+.searches-table tr:hover { background: #FAFBFC; cursor: pointer; }
+.status-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+.status-complete { background: var(--accent); }
+.status-running { background: var(--blue); animation: pulse 1.5s infinite; }
+.status-review { background: var(--amber); }
+.status-cancelled { background: var(--text-light); }
+@keyframes pulse {
+  0%, 100% { opacity: 1; } 50% { opacity: 0.4; }
+}
+
+/* ---------- Filter chips ---------- */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+.filter-chip {
+  padding: 6px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: #FFF;
+  font-size: 12.5px;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.filter-chip:hover { border-color: #94A3B8; color: var(--text); }
+.filter-chip.active { background: var(--text); color: #FFF; border-color: var(--text); }
+
+/* ---------- Results / band cards ---------- */
+.band-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.band-card {
+  background: #FFF;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+  overflow: hidden;
+}
+.band-card:hover { border-color: var(--border-strong); transform: translateY(-1px); }
+.band-card.active { border-color: var(--text); box-shadow: var(--shadow-lg); }
+.band-card::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+}
+.band-ideal::before { background: var(--accent); }
+.band-good::before { background: var(--blue); }
+.band-moderate::before { background: var(--amber); }
+.band-notfit::before { background: var(--text-light); }
+.band-label { font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+.band-count { font-size: 26px; font-weight: 700; color: var(--text); letter-spacing: -0.5px; line-height: 1.1; }
+.band-avg { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+/* ---------- Candidate table ---------- */
+.candidate-row {
+  display: grid;
+  grid-template-columns: 40px 90px 1fr 1fr 130px 100px;
+  gap: 14px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  align-items: center;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.candidate-row:hover { background: #FAFBFC; }
+.candidate-row:last-child { border-bottom: none; }
+.rank-num {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-align: center;
+}
+.band-tag {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+  text-align: center;
+}
+.tag-ideal { background: var(--accent-soft); color: #065F46; }
+.tag-good { background: var(--blue-soft); color: #1E40AF; }
+.tag-moderate { background: var(--amber-soft); color: #92400E; }
+.tag-notfit { background: var(--gray-soft); color: var(--text-muted); }
+.candidate-name { font-weight: 600; font-size: 14px; margin-bottom: 2px; }
+.candidate-meta { font-size: 12px; color: var(--text-muted); }
+.strength-preview {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.candidate-actions { display: flex; gap: 6px; justify-content: flex-end; }
+.icon-btn {
+  width: 30px; height: 30px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: #FFF;
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+.icon-btn:hover { border-color: var(--text); color: var(--text); }
+.icon-btn.approve { color: var(--accent); }
+.icon-btn.approve:hover { background: var(--accent-soft); border-color: var(--accent); }
+.icon-btn.reject:hover { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }
+
+/* ---------- Progress screen ---------- */
+.progress-hero {
+  background: #FFF;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 32px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+.progress-status { font-size: 13px; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+.progress-current { font-size: 22px; font-weight: 600; margin-bottom: 20px; }
+.progress-bar-wrap {
+  background: var(--gray-soft);
+  border-radius: 999px;
+  height: 10px;
+  overflow: hidden;
+  margin: 0 auto 12px auto;
+  max-width: 520px;
+}
+.progress-bar {
+  background: linear-gradient(90deg, var(--accent) 0%, #34D399 100%);
+  height: 100%;
+  width: 62%;
+  border-radius: 999px;
+  transition: width 0.3s;
+}
+.progress-stats { display: flex; justify-content: center; gap: 32px; margin-top: 20px; font-size: 13px; color: var(--text-muted); }
+.progress-stat b { color: var(--text); font-weight: 600; }
+.stages { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 26px; }
+.stage {
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--gray-soft);
+  text-align: left;
+}
+.stage.done { background: var(--accent-soft); border-color: var(--accent); }
+.stage.active { background: var(--blue-soft); border-color: var(--blue); }
+.stage-num { font-size: 11px; color: var(--text-muted); font-weight: 600; }
+.stage-name { font-size: 13px; font-weight: 600; margin-top: 3px; }
+.stage-detail { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; }
+
+/* ---------- Candidate drawer ---------- */
+.drawer-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  display: none;
+  z-index: 100;
+}
+.drawer-backdrop.open { display: block; }
+.drawer {
+  position: fixed;
+  top: 0; right: 0; bottom: 0;
+  width: 560px;
+  max-width: 90vw;
+  background: #FFF;
+  box-shadow: -10px 0 30px rgba(0,0,0,0.15);
+  z-index: 101;
+  overflow-y: auto;
+  transform: translateX(100%);
+  transition: transform 0.25s ease;
+}
+.drawer.open { transform: translateX(0); }
+.drawer-head {
+  padding: 22px 26px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: #FFF;
+  z-index: 2;
+}
+.drawer-close {
+  position: absolute;
+  right: 20px; top: 20px;
+  width: 30px; height: 30px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: #FFF;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; color: var(--text-muted);
+}
+.drawer-body { padding: 22px 26px; }
+.detail-band {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.detail-name { font-size: 22px; font-weight: 700; margin-bottom: 4px; letter-spacing: -0.3px; }
+.detail-meta { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; }
+.score-big { font-size: 44px; font-weight: 700; letter-spacing: -1px; color: var(--text); }
+.score-cap { font-size: 20px; color: var(--text-light); font-weight: 500; }
+.score-desc { font-size: 12.5px; color: var(--text-muted); }
+.score-panel { display: flex; align-items: baseline; gap: 20px; margin-bottom: 22px; padding: 16px 18px; background: var(--gray-soft); border-radius: 10px; }
+.section-h { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin: 20px 0 10px 0; }
+.rubric-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  gap: 12px;
+  align-items: center;
+}
+.rubric-row:last-child { border-bottom: none; font-weight: 600; padding-top: 12px; margin-top: 4px; border-top: 2px solid var(--text); border-bottom: none; }
+.rubric-score { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rubric-just { font-size: 12px; color: var(--text-muted); margin-top: 2px; grid-column: 1 / -1; }
+.strength-item, .gap-item {
+  padding: 10px 12px;
+  border-radius: 6px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.strength-item { background: var(--accent-soft); color: #065F46; }
+.gap-item { background: var(--gray-soft); color: var(--text); }
+.check { color: var(--accent); font-weight: 700; flex-shrink: 0; }
+.dash { color: var(--text-muted); font-weight: 700; flex-shrink: 0; }
+.drawer-actions {
+  padding: 18px 26px;
+  border-top: 1px solid var(--border);
+  background: #FAFBFC;
+  display: flex;
+  gap: 10px;
+  position: sticky;
+  bottom: 0;
+}
+
+/* ---------- Outreach screen ---------- */
+.outreach-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 20px;
+  min-height: 600px;
+}
+.outreach-list {
+  background: #FFF;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px;
+}
+.outreach-item {
+  padding: 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  margin-bottom: 4px;
+}
+.outreach-item:hover { background: var(--gray-soft); }
+.outreach-item.selected { background: var(--accent-soft); border-color: var(--accent); }
+.outreach-item .oname { font-size: 13.5px; font-weight: 600; margin-bottom: 2px; }
+.outreach-item .ometa { font-size: 12px; color: var(--text-muted); }
+.outreach-detail {
+  background: #FFF;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 24px;
+}
+.oh-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 18px; }
+.oh-tab { padding: 10px 16px; font-size: 13px; font-weight: 500; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.oh-tab.active { color: var(--text); border-bottom-color: var(--text); }
+.email-preview {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.email-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  background: #FAFBFC;
+  font-size: 12.5px;
+}
+.email-header-row { display: flex; padding: 3px 0; }
+.email-header-row .k { color: var(--text-muted); width: 60px; flex-shrink: 0; }
+.email-header-row .v { color: var(--text); }
+.email-body { padding: 20px; font-size: 13.5px; line-height: 1.65; color: var(--text); }
+.email-body p { margin-bottom: 12px; }
+
+/* Login screen */
+.login-page {
+  display: none;
+  background: linear-gradient(135deg, #0A1F1A 0%, #143329 100%);
+  color: #F1F5F9;
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+.login-page.show { display: flex; }
+.login-card {
+  background: #FFF;
+  color: var(--text);
+  padding: 40px;
+  border-radius: 14px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.login-brand { text-align: center; margin-bottom: 28px; }
+.login-brand .logo { font-size: 11px; letter-spacing: 2px; color: var(--accent); font-weight: 700; }
+.login-brand .name { font-size: 22px; font-weight: 700; letter-spacing: -0.4px; margin-top: 4px; }
+.login-brand .tag { font-size: 13px; color: var(--text-muted); margin-top: 6px; }
+
+/* Utility */
+.hidden { display: none !important; }
+.spacer-sm { height: 8px; }
+.spacer-md { height: 16px; }
+.spacer-lg { height: 28px; }
+.flex-between { display: flex; align-items: center; justify-content: space-between; }
+.text-muted { color: var(--text-muted); }
+.text-small { font-size: 12.5px; }
+.text-tiny { font-size: 11.5px; }
+.dot-sep { color: var(--text-light); margin: 0 6px; }
+
+/* Design note callouts (visible only on the mockup itself, for Sahil) */
+.designnote {
+  position: relative;
+  border: 1.5px dashed #EA580C;
+  background: #FFF7ED;
+  border-radius: 8px;
+  padding: 12px 14px 12px 40px;
+  font-size: 12.5px;
+  color: #7C2D12;
+  margin: 16px 0;
+  line-height: 1.55;
+}
+.designnote::before {
+  content: "!";
+  position: absolute;
+  left: 12px; top: 12px;
+  width: 20px; height: 20px;
+  background: #EA580C;
+  color: #FFF;
+  border-radius: 50%;
+  font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px;
+}
+.designnote b { color: #431407; }
+
+/* Page switcher (mockup navigation) */
+.mockup-jumper {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: var(--text);
+  color: #FFF;
+  padding: 10px 14px;
+  border-radius: 10px;
+  box-shadow: var(--shadow-lg);
+  font-size: 12px;
+  z-index: 200;
+  max-width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.mockup-jumper-label { color: #94A3B8; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
+.mockup-jumper button {
+  background: transparent;
+  border: 1px solid #334155;
+  color: #E2E8F0;
+  padding: 5px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 12px;
+  text-align: left;
+  font-family: inherit;
+}
+.mockup-jumper button:hover { background: #1E293B; }
+.mockup-jumper button.here { background: var(--accent); color: #052E23; border-color: var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN SCREEN (hidden by default; toggle via jumper) ============ -->
+<div class="login-page" id="page-login">
+  <div class="login-card">
+    <div class="login-brand">
+      <div class="logo">NEXUS</div>
+      <div class="name">Talent Match</div>
+      <div class="tag">Sign in to your workspace</div>
+    </div>
+    <div class="form-field">
+      <label>Email</label>
+      <input type="text" value="sarah.whitfield@northwoodanalytics.co.uk">
+    </div>
+    <div class="spacer-md"></div>
+    <div class="form-field">
+      <label>Password</label>
+      <input type="text" value="••••••••••••">
+    </div>
+    <div class="spacer-md"></div>
+    <button class="btn btn-primary" style="width: 100%; justify-content: center;" onclick="showApp()">Sign in</button>
+    <div class="spacer-md"></div>
+    <div style="text-align: center; font-size: 12.5px; color: var(--text-muted);">
+      Forgot password?
+    </div>
+    <div class="spacer-lg"></div>
+    <div style="text-align: center; font-size: 11.5px; color: var(--text-light); border-top: 1px solid var(--border); padding-top: 16px;">
+      New workspace? Get in touch with your MasterTech onboarder.
+    </div>
+  </div>
+</div>
+
+<!-- ============ MAIN APP ============ -->
+<div class="app" id="app-shell">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-logo">NEXUS</div>
+      <div class="brand-name">Talent Match</div>
+    </div>
+    <nav class="nav">
+      <div class="nav-section-label">Workspace</div>
+      <div class="nav-item" data-target="page-newsearch" onclick="showPage('page-newsearch')">
+        <span class="icon">＋</span>Start new search
+      </div>
+      <div class="nav-item" data-target="page-library" onclick="showPage('page-library')">
+        <span class="icon">☰</span>Search library
+      </div>
+      <div class="nav-item" data-target="page-outreach" onclick="showPage('page-outreach')">
+        <span class="icon">✎</span>Outreach queue
+        <span class="badge">3</span>
+      </div>
+      <div class="nav-item" data-target="page-sent" onclick="showPage('page-sent')">
+        <span class="icon">↗</span>Sent outreach
+      </div>
+      <div class="nav-section-label" style="margin-top: 20px;">Settings</div>
+      <div class="nav-item" data-target="page-settings" onclick="showPage('page-settings')">
+        <span class="icon">⚙</span>Workspace settings
+      </div>
+    </nav>
+    <div class="user-box">
+      <div class="avatar">SW</div>
+      <div class="user-info">
+        <div class="user-name">Sarah Whitfield</div>
+        <div class="user-role">HR Generalist · Northwood</div>
+      </div>
+      <div class="signout" onclick="showLogin()">↩</div>
+    </div>
+  </aside>
+
+  <!-- Main content area -->
+  <main class="main">
+
+    <!-- ============ PAGE: Search Library (dashboard) ============ -->
+    <div class="page" id="page-library">
+      <div class="topbar">
+        <div>
+          <div class="page-title">Search library</div>
+          <div class="page-subtitle">All talent searches for Northwood Analytics</div>
+        </div>
+        <button class="btn btn-primary" onclick="showPage('page-newsearch')">＋ Start new search</button>
+      </div>
+      <div class="content">
+        <div class="filter-bar">
+          <div class="filter-chip active">All searches</div>
+          <div class="filter-chip">Active</div>
+          <div class="filter-chip">Awaiting review</div>
+          <div class="filter-chip">Completed</div>
+          <div class="filter-chip">Archived</div>
+        </div>
+
+        <table class="searches-table">
+          <thead>
+            <tr>
+              <th>Search name</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th>Candidates reviewed</th>
+              <th>Recommended</th>
+              <th>Last activity</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr onclick="showPage('page-results')">
+              <td><b>Senior Data Engineer — August</b></td>
+              <td>Senior Data Engineer</td>
+              <td><span class="status-dot status-review"></span>Awaiting review</td>
+              <td>218 of 218</td>
+              <td>14</td>
+              <td>2 hours ago</td>
+            </tr>
+            <tr onclick="showPage('page-progress')">
+              <td><b>Client Services Manager — MCR office</b></td>
+              <td>Client Services Manager</td>
+              <td><span class="status-dot status-running"></span>Running</td>
+              <td>96 of 340</td>
+              <td>—</td>
+              <td>Just now</td>
+            </tr>
+            <tr>
+              <td><b>Junior Analyst (grad hire) — July</b></td>
+              <td>Junior Analyst</td>
+              <td><span class="status-dot status-complete"></span>Completed</td>
+              <td>452 of 452</td>
+              <td>22 · <span class="text-muted">12 approved</span></td>
+              <td>Yesterday</td>
+            </tr>
+            <tr>
+              <td><b>Head of Compliance — replacement</b></td>
+              <td>Head of Compliance</td>
+              <td><span class="status-dot status-complete"></span>Completed</td>
+              <td>67 of 67</td>
+              <td>5 · <span class="text-muted">3 approved</span></td>
+              <td>3 days ago</td>
+            </tr>
+            <tr>
+              <td><b>Backend Engineer (Python)</b></td>
+              <td>Backend Engineer</td>
+              <td><span class="status-dot status-cancelled"></span>Cancelled</td>
+              <td>18 of 340</td>
+              <td>—</td>
+              <td>Last week</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="designnote">
+          <b>For Sahil:</b> the Search Library replaces the current dashboard. "Recommended" is the count of Ideal + Good candidates the agent surfaced — this is what the client actually cares about, not the raw processed count. The amber-dot "Awaiting review" state is important: it's the reviewer-silence signal from the escalation engine (see Next-Steps PRD, Phase 1 task 9). No score threshold shown anywhere on this page — that's an agent-internal concept.
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ PAGE: New Search ============ -->
+    <div class="page hidden" id="page-newsearch">
+      <div class="topbar">
+        <div>
+          <div class="page-title">Start new search</div>
+          <div class="page-subtitle">Tell us about the role — we'll find the matches</div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn" onclick="showPage('page-library')">Cancel</button>
+          <button class="btn btn-primary" onclick="showPage('page-progress')">Start search</button>
+        </div>
+      </div>
+      <div class="content">
+
+        <!-- Basics -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">The role</div>
+          </div>
+          <div class="card-sub">Give the search a name for your own filing, upload the job description, and set the urgency.</div>
+
+          <div class="form-row form-row-3">
+            <div class="form-field">
+              <label>Search name</label>
+              <input type="text" placeholder="e.g. Senior Data Engineer — August" value="Senior Data Engineer — August">
+              <div class="hint">Only visible to your team.</div>
+            </div>
+            <div class="form-field">
+              <label>Role title</label>
+              <input type="text" placeholder="e.g. Senior Data Engineer" value="Senior Data Engineer">
+            </div>
+            <div class="form-field">
+              <label>Openings</label>
+              <input type="number" value="2">
+            </div>
+          </div>
+
+          <div class="form-row form-row-2">
+            <div class="form-field">
+              <label>Job description</label>
+              <div class="file-drop">
+                <div class="file-icon">↑</div>
+                <div class="file-primary">Drop PDF, DOCX, or TXT — or click to browse</div>
+                <div class="file-secondary">The JD is the primary source of truth. Extra requirements below fill in what the JD doesn't say.</div>
+              </div>
+            </div>
+            <div class="form-field">
+              <label>Urgency</label>
+              <select>
+                <option>Standard — usual pace</option>
+                <option>High — hire needed within 4 weeks</option>
+                <option>Critical — hire needed within 2 weeks</option>
+              </select>
+              <div class="hint">Only affects your view of pace on the search — the agent works at the same speed.</div>
+              <div class="spacer-md"></div>
+              <label>Target start date</label>
+              <input type="text" value="15 September 2026" placeholder="dd Month yyyy">
+            </div>
+          </div>
+        </div>
+
+        <!-- CV database source (pre-connected, read-only) -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Where we'll search</div>
+            <span class="mode-pill" style="background: var(--accent-soft); color: #065F46; border-color: var(--accent);">✓ Connected</span>
+          </div>
+          <div class="card-sub">The candidate database we set up together during onboarding.</div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div style="padding: 14px 16px; background: var(--gray-soft); border-radius: 8px;">
+              <div class="text-tiny text-muted" style="text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Source</div>
+              <div style="font-weight: 600; font-size: 14px; margin-top: 4px;">Workable · Northwood workspace</div>
+              <div class="text-small text-muted">Connected 12 June 2026</div>
+            </div>
+            <div style="padding: 14px 16px; background: var(--gray-soft); border-radius: 8px;">
+              <div class="text-tiny text-muted" style="text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Resumes indexed</div>
+              <div style="font-weight: 600; font-size: 14px; margin-top: 4px;">2,847 candidates</div>
+              <div class="text-small text-muted">Last synced 8 minutes ago</div>
+            </div>
+          </div>
+
+          <div class="banner" style="margin-top: 16px; margin-bottom: 0;">
+            <span class="banner-icon">ⓘ</span>
+            <div>
+              Want to change the source or add another? Ping your MasterTech onboarder — we'll connect a new database or ATS in a short call. Never done inside the app.
+            </div>
+          </div>
+
+          <div class="designnote">
+            <b>For Sahil:</b> the client does NOT upload resumes here. The CV database (Workable ATS in this example) was connected during the intro/onboarding call. The read-only card shows what's connected + the live resume count. The information banner sets the expectation that source changes go through us, not self-serve. This is the key departure from the current build.
+          </div>
+        </div>
+
+        <!-- Requirements sections -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">What matters beyond the JD</div>
+          </div>
+          <div class="card-sub">Everything below is optional. Fill in what the JD doesn't say, or where you want your answer to override it. Each item is either a <b>preference</b> (affects how we rank) or a <b>hard requirement</b> (can rule someone out). Where a section can rule someone out, we say so clearly.</div>
+
+          <!-- Role & context -->
+          <div class="section expanded" onclick="toggleSection(event, this)">
+            <div class="section-head">
+              <div class="section-head-left">
+                <div class="section-title">Team & seniority</div>
+                <div class="section-desc">Where the person will sit, how senior, what industry background helps.</div>
+              </div>
+              <div class="section-head-right">
+                <span class="mode-pill pref">Preference</span>
+                <span class="chev">›</span>
+              </div>
+            </div>
+            <div class="section-body" onclick="event.stopPropagation()">
+              <div class="form-row form-row-2">
+                <div class="form-field">
+                  <label>Seniority we're expecting</label>
+                  <select>
+                    <option>Senior (5–10 years)</option>
+                  </select>
+                  <div class="hint">A range, not a floor. We won't reject anyone for being outside this — we use it to shape scoring.</div>
+                </div>
+                <div class="form-field">
+                  <label>Industry background that helps</label>
+                  <div class="chips-input">
+                    <span class="chip">UK financial services <span class="x">×</span></span>
+                    <span class="chip">Fintech <span class="x">×</span></span>
+                    <input type="text" placeholder="Type and press enter…">
+                  </div>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-field">
+                  <label>Team the candidate will join <span class="text-muted text-small">(optional)</span></label>
+                  <input type="text" value="Data platform team — 6 engineers, reports to Head of Engineering">
+                  <div class="hint">Used in the outreach draft to add colour.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Location -->
+          <div class="section expanded" onclick="toggleSection(event, this)">
+            <div class="section-head">
+              <div class="section-head-left">
+                <div class="section-title">Location & work mode</div>
+                <div class="section-desc">Where the candidate needs to be. This is the one section we let you set as a hard requirement by default.</div>
+              </div>
+              <div class="section-head-right">
+                <span class="mode-pill hard">Hard requirement</span>
+                <span class="chev">›</span>
+              </div>
+            </div>
+            <div class="section-body" onclick="event.stopPropagation()">
+              <div class="form-row form-row-2">
+                <div class="form-field">
+                  <label>Required location</label>
+                  <div class="chips-input">
+                    <span class="chip strong">Manchester, UK <span class="x">×</span></span>
+                    <input type="text" placeholder="Add another city…">
+                  </div>
+                </div>
+                <div class="form-field">
+                  <label>Work mode</label>
+                  <select>
+                    <option>Hybrid (2–3 days onsite)</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-row form-row-2">
+                <div class="form-field">
+                  <label>Commute tolerance</label>
+                  <select>
+                    <option>Same metro area (e.g., Manchester ↔ Salford, Stockport, Bolton)</option>
+                  </select>
+                  <div class="hint">Candidates in neighbouring cities won't be filtered out.</div>
+                </div>
+                <div class="form-field">
+                  <label>Relocation acceptable?</label>
+                  <select>
+                    <option>Only if the candidate says they're open to it</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Skills -->
+          <div class="section expanded" onclick="toggleSection(event, this)">
+            <div class="section-head">
+              <div class="section-head-left">
+                <div class="section-title">Must-have skills & credentials</div>
+                <div class="section-desc">Skills that genuinely matter, and any credentials the role legally requires.</div>
+              </div>
+              <div class="section-head-right">
+                <span class="mode-pill pref">Preference</span>
+                <span class="chev">›</span>
+              </div>
+            </div>
+            <div class="section-body" onclick="event.stopPropagation()">
+              <div class="form-row">
+                <div class="form-field">
+                  <label>Must-have skills</label>
+                  <div class="chips-input">
+                    <span class="chip strong">Python <span class="x">×</span></span>
+                    <span class="chip strong">SQL <span class="x">×</span></span>
+                    <span class="chip strong">Snowflake <span class="x">×</span></span>
+                    <span class="chip strong">dbt <span class="x">×</span></span>
+                    <input type="text" placeholder="Add a skill…">
+                  </div>
+                  <div class="hint">Ranked heavily. You can promote up to two to hard requirements — we ask you to justify each.</div>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-field">
+                  <label>Nice-to-have skills</label>
+                  <div class="chips-input">
+                    <span class="chip">Airflow <span class="x">×</span></span>
+                    <span class="chip">Kafka <span class="x">×</span></span>
+                    <span class="chip">AWS <span class="x">×</span></span>
+                    <input type="text" placeholder="Add a skill…">
+                  </div>
+                </div>
+              </div>
+              <div class="form-row form-row-2">
+                <div class="form-field">
+                  <label>Required credentials <span class="text-muted text-small">(only if legally required)</span></label>
+                  <div class="chips-input">
+                    <input type="text" placeholder="e.g. Chartered Accountant, Bar-certified…">
+                  </div>
+                  <div class="hint">Certifications the role can't be done without. We treat these as hard requirements.</div>
+                </div>
+                <div class="form-field">
+                  <label>Education</label>
+                  <select>
+                    <option>Any (we won't filter on education)</option>
+                  </select>
+                  <div class="hint">Default is "Any" — filtering on degree screens out equally capable self-taught candidates.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Compensation -->
+          <div class="section" onclick="toggleSection(event, this)">
+            <div class="section-head">
+              <div class="section-head-left">
+                <div class="section-title">Compensation context</div>
+                <div class="section-desc">Your budget range. We flag over-budget candidates — we never drop them.</div>
+              </div>
+              <div class="section-head-right">
+                <span class="mode-pill">Flag only</span>
+                <span class="chev">›</span>
+              </div>
+            </div>
+            <div class="section-body" onclick="event.stopPropagation()">
+              <div class="form-row form-row-3">
+                <div class="form-field">
+                  <label>Minimum (GBP, annual)</label>
+                  <input type="number" value="55000">
+                </div>
+                <div class="form-field">
+                  <label>Maximum (GBP, annual)</label>
+                  <input type="number" value="75000">
+                </div>
+                <div class="form-field">
+                  <label>Equity / options</label>
+                  <select><option>Not applicable</option></select>
+                </div>
+              </div>
+              <div class="banner">
+                <span class="banner-icon">ⓘ</span>
+                <div>Salary is almost never a good reason to rule someone out — negotiation, non-cash comp, and role-scope adjustments all move numbers. Over-budget candidates appear in your results with a small "over budget" badge.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Availability -->
+          <div class="section" onclick="toggleSection(event, this)">
+            <div class="section-head">
+              <div class="section-head-left">
+                <div class="section-title">Availability & start date</div>
+                <div class="section-desc">Notice period, earliest / latest start.</div>
+              </div>
+              <div class="section-head-right">
+                <span class="mode-pill pref">Preference</span>
+                <span class="chev">›</span>
+              </div>
+            </div>
+            <div class="section-body" onclick="event.stopPropagation()">
+              <div class="form-row form-row-3">
+                <div class="form-field">
+                  <label>Maximum notice period they can be on</label>
+                  <select><option>3 months</option></select>
+                </div>
+                <div class="form-field">
+                  <label>Willing to travel?</label>
+                  <select><option>Occasional (up to 20%)</option></select>
+                </div>
+                <div class="form-field">
+                  <label>Shift timing</label>
+                  <select><option>UK business hours</option></select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cultural fit -->
+          <div class="section" onclick="toggleSection(event, this)">
+            <div class="section-head">
+              <div class="section-head-left">
+                <div class="section-title">What makes someone thrive here</div>
+                <div class="section-desc">The qualitative signal the JD never captures. Two or three sentences is enough.</div>
+              </div>
+              <div class="section-head-right">
+                <span class="mode-pill pref">Preference</span>
+                <span class="chev">›</span>
+              </div>
+            </div>
+            <div class="section-body" onclick="event.stopPropagation()">
+              <div class="form-row">
+                <div class="form-field">
+                  <label>How would you describe someone who does well at Northwood?</label>
+                  <textarea>The people who thrive here are careful with detail (we're a regulated environment), comfortable owning a piece end-to-end without a lot of process, and interested in banking — not just tech. We're small enough that whoever joins will shape their own role.</textarea>
+                  <div class="hint">We use this to shape the outreach voice and to weigh softer signals in the ranking.</div>
+                </div>
+              </div>
+              <div class="form-row form-row-2">
+                <div class="form-field">
+                  <label>Signals to look for <span class="text-muted text-small">(optional)</span></label>
+                  <div class="chips-input">
+                    <span class="chip">Owned a system end-to-end <span class="x">×</span></span>
+                    <span class="chip">Regulated industry background <span class="x">×</span></span>
+                    <input type="text" placeholder="Add a signal…">
+                  </div>
+                </div>
+                <div class="form-field">
+                  <label>Signals that would concern you <span class="text-muted text-small">(optional)</span></label>
+                  <div class="chips-input">
+                    <span class="chip">Frequent job hops (&lt;12 months) <span class="x">×</span></span>
+                    <input type="text" placeholder="Add a signal…">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dealbreakers -->
+          <div class="section" onclick="toggleSection(event, this)">
+            <div class="section-head">
+              <div class="section-head-left">
+                <div class="section-title">Absolute dealbreakers</div>
+                <div class="section-desc">The explicit "never" list. Anything here rules someone out immediately — we log each rejection with the reason you give.</div>
+              </div>
+              <div class="section-head-right">
+                <span class="mode-pill hard">Hard requirement</span>
+                <span class="chev">›</span>
+              </div>
+            </div>
+            <div class="section-body" onclick="event.stopPropagation()">
+              <div class="form-row">
+                <div class="form-field">
+                  <label>Dealbreakers (each one needs a one-line reason)</label>
+                  <textarea placeholder="One per line. Example: Worked at [named competitor] within the last 12 months — non-solicit clause in place.">Currently working at Fintech Regulatory Ltd — active NDA on our data models
+More than 3 employers in the last 24 months — high turnover risk in a compliance-heavy role</textarea>
+                  <div class="hint">Every candidate ruled out under a dealbreaker gets a specific audit-log entry citing which one and why.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="designnote">
+            <b>For Sahil:</b> five sections here — six with dealbreakers. Removed from the original mockup: shortlist threshold, resume upload, work authorization (handled during intro call), and the standalone "Gender eligibility" section (moved to a jurisdiction-gated workflow that Sarah never sees under a UK pack). Added: "What makes someone thrive here" — the cultural signal a JD never captures — and "Absolute dealbreakers." The default state on every section here is Preference except Location and Dealbreakers. Any section can be collapsed and the search still runs.
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ============ PAGE: Progress ============ -->
+    <div class="page hidden" id="page-progress">
+      <div class="topbar">
+        <div>
+          <div class="page-title">Client Services Manager — MCR office</div>
+          <div class="page-subtitle">Search in progress</div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-danger">Cancel search</button>
+        </div>
+      </div>
+      <div class="content">
+
+        <div class="progress-hero">
+          <div class="progress-status">Working</div>
+          <div class="progress-current">Scoring candidate 96 of 340 against Northwood's requirements</div>
+          <div class="progress-bar-wrap">
+            <div class="progress-bar"></div>
+          </div>
+          <div class="progress-stats">
+            <div class="progress-stat"><b>96</b> of 340 candidates scored</div>
+            <div class="progress-stat"><b>3 min 12 sec</b> remaining</div>
+            <div class="progress-stat"><b>12</b> recommended so far</div>
+          </div>
+
+          <div class="stages">
+            <div class="stage done">
+              <div class="stage-num">Step 1</div>
+              <div class="stage-name">Reading the JD ✓</div>
+              <div class="stage-detail">Structured 8 required skills, 4 nice-to-haves, 2 hard requirements from your form.</div>
+            </div>
+            <div class="stage done">
+              <div class="stage-num">Step 2</div>
+              <div class="stage-name">Parsing 340 resumes ✓</div>
+              <div class="stage-detail">2 resumes couldn't be read (image scans) — flagged for your manual review at the end.</div>
+            </div>
+            <div class="stage active">
+              <div class="stage-num">Step 3</div>
+              <div class="stage-name">Scoring & ranking…</div>
+              <div class="stage-detail">Applying dealbreakers and the five-bucket scoring rubric. Compliance check runs on each.</div>
+            </div>
+            <div class="stage">
+              <div class="stage-num">Step 4</div>
+              <div class="stage-name">Drafting outreach</div>
+              <div class="stage-detail">For everyone in the Ideal Match and Good Fit bands, in Northwood's professional voice.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="designnote">
+          <b>For Sahil:</b> the progress screen is the client's reassurance. Two things matter here — human-readable status ("Scoring candidate 96 of 340", not "Chunk 6 processing") and honest handling of partial failures (2 unreadable resumes surfaced now, not silently dropped). The cancel button preserves partial results. The stages panel makes the pipeline transparent without being technical.
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ PAGE: Results ============ -->
+    <div class="page hidden" id="page-results">
+      <div class="topbar">
+        <div>
+          <div class="page-title">Senior Data Engineer — August</div>
+          <div class="page-subtitle">218 candidates reviewed · 14 recommended · Completed 2 hours ago</div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn">↓ Export to Excel</button>
+          <button class="btn btn-primary" onclick="showPage('page-outreach')">Review outreach drafts →</button>
+        </div>
+      </div>
+      <div class="content">
+
+        <div class="band-strip">
+          <div class="band-card band-ideal active">
+            <div class="band-label">Ideal Match</div>
+            <div class="band-count">3</div>
+            <div class="band-avg">Meets essentially every requirement</div>
+          </div>
+          <div class="band-card band-good">
+            <div class="band-label">Good Fit</div>
+            <div class="band-count">11</div>
+            <div class="band-avg">Meets the bar with minor gaps</div>
+          </div>
+          <div class="band-card band-moderate">
+            <div class="band-label">Moderate Fit</div>
+            <div class="band-count">28</div>
+            <div class="band-avg">Just below the bar — worth reviewing</div>
+          </div>
+          <div class="band-card band-notfit">
+            <div class="band-label">Not a Fit</div>
+            <div class="band-count">176</div>
+            <div class="band-avg">Includes 14 dealbreaker rejections</div>
+          </div>
+        </div>
+
+        <div class="filter-bar">
+          <input type="text" placeholder="Search candidates…" style="padding: 7px 12px; border: 1px solid var(--border-strong); border-radius: 6px; font-size: 13px; font-family: inherit; min-width: 240px;">
+          <div class="filter-chip active">All 14 recommended</div>
+          <div class="filter-chip">Not yet reviewed</div>
+          <div class="filter-chip">Approved</div>
+          <div class="filter-chip">Over budget</div>
+          <div class="filter-chip">Flagged</div>
+        </div>
+
+        <div style="background: #FFF; border: 1px solid var(--border); border-radius: 10px; overflow: hidden;">
+          <div class="candidate-row" style="background: #FAFBFC; font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; cursor: default;">
+            <div>#</div><div>Band</div><div>Candidate</div><div>Why they match</div><div>Signals</div><div style="text-align: right;">Actions</div>
+          </div>
+
+          <div class="candidate-row" onclick="openDrawer()">
+            <div class="rank-num">1</div>
+            <div class="band-tag tag-ideal">Ideal</div>
+            <div>
+              <div class="candidate-name">Aditi Ramanathan</div>
+              <div class="candidate-meta">Snr Data Engineer at Monzo · Manchester · 7 years</div>
+            </div>
+            <div class="strength-preview">Snowflake + dbt daily for 3 years. Owned end-to-end lakehouse migration at a fintech. Python, SQL, Airflow all listed. Regulated-industry background — matches the "thrive" signal.</div>
+            <div><span class="text-tiny" style="color: var(--accent); font-weight: 600;">◆ Strong culture match</span></div>
+            <div class="candidate-actions">
+              <button class="icon-btn approve" title="Approve">✓</button>
+              <button class="icon-btn reject" title="Reject">×</button>
+            </div>
+          </div>
+
+          <div class="candidate-row" onclick="openDrawer()">
+            <div class="rank-num">2</div>
+            <div class="band-tag tag-ideal">Ideal</div>
+            <div>
+              <div class="candidate-name">James Okoro</div>
+              <div class="candidate-meta">Data Engineer at Starling Bank · Salford · 6 years</div>
+            </div>
+            <div class="strength-preview">Python, SQL, Snowflake all daily. Shipped dbt at scale. UK financial services background. Airflow + AWS as nice-to-haves both met.</div>
+            <div><span class="text-tiny" style="color: var(--amber); font-weight: 600;">£ Over budget by ~8k</span></div>
+            <div class="candidate-actions">
+              <button class="icon-btn approve" title="Approve">✓</button>
+              <button class="icon-btn reject" title="Reject">×</button>
+            </div>
+          </div>
+
+          <div class="candidate-row">
+            <div class="rank-num">3</div>
+            <div class="band-tag tag-ideal">Ideal</div>
+            <div>
+              <div class="candidate-name">Priya Shah</div>
+              <div class="candidate-meta">Analytics Engineer at ClearBank · Manchester · 5 years</div>
+            </div>
+            <div class="strength-preview">dbt + Snowflake + SQL daily. Owned data platform end-to-end at prior role. Fintech background. Willing to move to Snr Data Engineer scope per her CV note.</div>
+            <div></div>
+            <div class="candidate-actions">
+              <button class="icon-btn approve" title="Approve">✓</button>
+              <button class="icon-btn reject" title="Reject">×</button>
+            </div>
+          </div>
+
+          <div class="candidate-row">
+            <div class="rank-num">4</div>
+            <div class="band-tag tag-good">Good</div>
+            <div>
+              <div class="candidate-name">Michael Chen</div>
+              <div class="candidate-meta">Senior BI Engineer at HSBC · Manchester · 8 years</div>
+            </div>
+            <div class="strength-preview">Strong SQL, Python. Snowflake for 2 years. dbt is a gap — used Fivetran+custom scripts. UK banking background. Solid regulated-industry track record.</div>
+            <div></div>
+            <div class="candidate-actions">
+              <button class="icon-btn approve" title="Approve">✓</button>
+              <button class="icon-btn reject" title="Reject">×</button>
+            </div>
+          </div>
+
+          <div class="candidate-row">
+            <div class="rank-num">5</div>
+            <div class="band-tag tag-good">Good</div>
+            <div>
+              <div class="candidate-name">Ellie Bergstrom</div>
+              <div class="candidate-meta">Data Engineer at Cazoo · Leeds · 5 years</div>
+            </div>
+            <div class="strength-preview">All must-haves met (Python, SQL, Snowflake, dbt). Not currently in Manchester but resume notes "open to Manchester relocation." No regulated-industry background.</div>
+            <div></div>
+            <div class="candidate-actions">
+              <button class="icon-btn approve" title="Approve">✓</button>
+              <button class="icon-btn reject" title="Reject">×</button>
+            </div>
+          </div>
+
+          <div class="candidate-row">
+            <div class="rank-num">6</div>
+            <div class="band-tag tag-good">Good</div>
+            <div>
+              <div class="candidate-name">Rahul Verma</div>
+              <div class="candidate-meta">Data Platform Engineer at Deliveroo · London · 6 years</div>
+            </div>
+            <div class="strength-preview">All must-haves met, Airflow expert. London-based; resume says "open to Manchester or hybrid with limited travel." Non-financial-services background.</div>
+            <div></div>
+            <div class="candidate-actions">
+              <button class="icon-btn approve" title="Approve">✓</button>
+              <button class="icon-btn reject" title="Reject">×</button>
+            </div>
+          </div>
+
+          <div style="padding: 14px 16px; font-size: 12.5px; color: var(--text-muted); text-align: center; background: #FAFBFC;">
+            + 8 more Good Fit candidates · scroll to view
+          </div>
+        </div>
+
+        <div class="designnote">
+          <b>For Sahil:</b> no numeric score on this view. Bands are the front-of-house language ("Ideal", "Good", etc). The numeric score, the five-bucket scoring rubric, the arithmetic self-check — all still exist and are shown in the candidate detail drawer (click any row). "Why they match" is the plain-English rationale; "Signals" surfaces flags like over-budget or strong culture match. The dealbreaker rejections (14 of them) live in the Not a Fit band with the reason logged.
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ PAGE: Outreach queue ============ -->
+    <div class="page hidden" id="page-outreach">
+      <div class="topbar">
+        <div>
+          <div class="page-title">Outreach queue</div>
+          <div class="page-subtitle">3 candidates approved and awaiting a message from you</div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn">Regenerate all drafts</button>
+          <button class="btn btn-primary">Approve & send all</button>
+        </div>
+      </div>
+      <div class="content">
+        <div class="outreach-layout">
+          <div class="outreach-list">
+            <div class="outreach-item selected">
+              <div class="oname">Aditi Ramanathan</div>
+              <div class="ometa">Senior Data Engineer · Ideal Match</div>
+            </div>
+            <div class="outreach-item">
+              <div class="oname">James Okoro</div>
+              <div class="ometa">Senior Data Engineer · Ideal Match</div>
+            </div>
+            <div class="outreach-item">
+              <div class="oname">Priya Shah</div>
+              <div class="ometa">Senior Data Engineer · Ideal Match</div>
+            </div>
+          </div>
+
+          <div class="outreach-detail">
+            <div class="oh-tabs">
+              <div class="oh-tab active">Email</div>
+              <div class="oh-tab">SMS</div>
+              <div class="oh-tab" style="margin-left: auto;">LinkedIn (Phase 2)</div>
+            </div>
+
+            <div class="email-preview">
+              <div class="email-header">
+                <div class="email-header-row"><span class="k">From:</span><span class="v">sarah.whitfield@northwoodanalytics.co.uk</span></div>
+                <div class="email-header-row"><span class="k">To:</span><span class="v">aditi.ramanathan@example.com</span></div>
+                <div class="email-header-row"><span class="k">Subject:</span><span class="v">Senior Data Engineer role at Northwood — thought you'd be a strong fit</span></div>
+              </div>
+              <div class="email-body" contenteditable="true">
+                <p>Hi Aditi,</p>
+                <p>I lead HR at Northwood Analytics — we build credit-risk analytics for regional UK banks and building societies, and we're hiring a Senior Data Engineer for our Manchester office.</p>
+                <p>Your work on the lakehouse migration at Monzo caught my attention specifically because we're at the point Monzo was two years ago: growing fast, the models are getting heavier, and we need someone who's comfortable owning the platform end-to-end rather than fitting into someone else's stack. Your Snowflake and dbt background is exactly the shape of what we're building.</p>
+                <p>We're a small team (six on the data platform side) inside a 45-person company. Hybrid working, three days in the Manchester office, budget range £55k–£75k depending on level. Happy to send the full JD and jump on a 20-minute call this week or next if you're open to a chat.</p>
+                <p>Best,<br>Sarah</p>
+              </div>
+            </div>
+
+            <div class="spacer-md"></div>
+
+            <div class="flex-between">
+              <div class="text-small text-muted">Draft edited manually — the "from" and "to" fields cannot be changed here. Ready to send when you approve.</div>
+              <div style="display: flex; gap: 8px;">
+                <button class="btn">Regenerate draft</button>
+                <button class="btn">Skip this candidate</button>
+                <button class="btn">Schedule send…</button>
+                <button class="btn btn-primary">Approve & send now</button>
+              </div>
+            </div>
+
+            <div class="designnote">
+              <b>For Sahil:</b> the email is inline-editable. The From address is the tenant's configured email domain and cannot be changed. Placeholder detection: if any "[Company]" or "[Role]" text survives to Approve, the send is blocked and the field is highlighted. Every send action captures reviewer identity + timestamp + final message content, and writes it all to the audit log.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sent outreach page (stub) -->
+    <div class="page hidden" id="page-sent">
+      <div class="topbar">
+        <div>
+          <div class="page-title">Sent outreach</div>
+          <div class="page-subtitle">Messages already sent from your workspace</div>
+        </div>
+      </div>
+      <div class="content">
+        <table class="searches-table">
+          <thead>
+            <tr><th>Candidate</th><th>Search</th><th>Sent</th><th>Sent by</th><th>Response</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><b>Michael Chen</b></td><td>Head of Compliance — replacement</td><td>3 days ago</td><td>Sarah Whitfield</td><td>Replied · positive</td></tr>
+            <tr><td><b>Sanjay Iyer</b></td><td>Junior Analyst (grad hire) — July</td><td>Yesterday</td><td>Sarah Whitfield</td><td>Awaiting reply</td></tr>
+            <tr><td><b>Ellie Bergstrom</b></td><td>Junior Analyst (grad hire) — July</td><td>Yesterday</td><td>Sarah Whitfield</td><td>Awaiting reply</td></tr>
+          </tbody>
+        </table>
+        <div class="designnote">
+          <b>For Sahil:</b> the Sent Outreach view is where a reviewer sees the full history of messages that left the system. Phase 1: this is read-only. Phase 2: reply threading lands here (see Next-Steps PRD § 4).
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings page (stub) -->
+    <div class="page hidden" id="page-settings">
+      <div class="topbar">
+        <div>
+          <div class="page-title">Workspace settings</div>
+          <div class="page-subtitle">Read-only in Phase 1 · changes go through your MasterTech onboarder</div>
+        </div>
+      </div>
+      <div class="content">
+        <div class="card">
+          <div class="card-title">Your workspace</div>
+          <div class="card-sub">Set during onboarding · needs a call to change</div>
+          <div class="form-row form-row-2">
+            <div class="form-field"><label>Company</label><input type="text" value="Northwood Analytics Ltd" disabled></div>
+            <div class="form-field"><label>Region / jurisdiction pack</label><input type="text" value="UK · Equality Act + UK GDPR" disabled></div>
+          </div>
+          <div class="form-row form-row-2">
+            <div class="form-field"><label>Primary reviewer</label><input type="text" value="Sarah Whitfield · HR Generalist" disabled></div>
+            <div class="form-field"><label>Backup reviewer</label><input type="text" value="James Okafor · Chief of Staff" disabled></div>
+          </div>
+          <div class="form-row form-row-2">
+            <div class="form-field"><label>Escalation delay</label><input type="text" value="5 days" disabled></div>
+            <div class="form-field"><label>Sensitive-matter contact</label><input type="text" value="Sarah Whitfield" disabled></div>
+          </div>
+          <div class="form-row form-row-2">
+            <div class="form-field"><label>Candidate database</label><input type="text" value="Workable · Northwood workspace · connected 12 June 2026" disabled></div>
+            <div class="form-field"><label>Voice / tone</label><input type="text" value="Warm-professional (candidate audience)" disabled></div>
+          </div>
+        </div>
+        <div class="designnote">
+          <b>For Sahil:</b> the Settings page is read-only in Phase 1 and shows what's in the client's <code>client_requirements.md</code> file (see the Schema Template doc). Everything here was set during the intro/onboarding call. The client can look but not touch — changes go through MasterTech and are logged.
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ============ CANDIDATE DRAWER ============ -->
+<div class="drawer-backdrop" id="drawer-backdrop" onclick="closeDrawer()"></div>
+<aside class="drawer" id="drawer">
+  <div class="drawer-head">
+    <button class="drawer-close" onclick="closeDrawer()">×</button>
+    <span class="detail-band tag-ideal">Ideal Match</span>
+    <div class="detail-name">Aditi Ramanathan</div>
+    <div class="detail-meta">Senior Data Engineer at Monzo · Manchester, UK · 7 years experience · <a href="#" style="color: var(--accent);">View resume →</a></div>
+  </div>
+
+  <div class="drawer-body">
+
+    <div class="score-panel">
+      <div>
+        <div class="score-big">92<span class="score-cap">/100</span></div>
+        <div class="score-desc">Overall match score</div>
+      </div>
+      <div style="flex: 1; padding-left: 16px; border-left: 1px solid var(--border-strong);">
+        <div style="font-size: 13px; font-weight: 600;">Why she scores this high</div>
+        <div style="font-size: 12.5px; color: var(--text-muted); margin-top: 4px;">All 4 must-have skills present. Owns platform end-to-end (matches your culture signal). UK financial-services background. Small gap on Airflow (nice-to-have only).</div>
+      </div>
+    </div>
+
+    <div class="section-h">How the score was reached</div>
+    <div>
+      <div class="rubric-row">
+        <div>
+          <div>Required skills match</div>
+          <div class="rubric-just">Python ✓ · SQL ✓ · Snowflake ✓ · dbt ✓ — all four must-haves present and used daily.</div>
+        </div>
+        <div class="rubric-score">38 / 40</div>
+      </div>
+      <div class="rubric-row">
+        <div>
+          <div>Hard requirements met</div>
+          <div class="rubric-just">Location: Manchester ✓ · No dealbreakers hit ✓</div>
+        </div>
+        <div class="rubric-score">25 / 25</div>
+      </div>
+      <div class="rubric-row">
+        <div>
+          <div>Experience quality</div>
+          <div class="rubric-just">7 years, includes senior data-engineering leadership at Monzo. Comfortably in the seniority range you asked for.</div>
+        </div>
+        <div class="rubric-score">14 / 15</div>
+      </div>
+      <div class="rubric-row">
+        <div>
+          <div>Education</div>
+          <div class="rubric-just">Set to "Any" — full points awarded to every candidate.</div>
+        </div>
+        <div class="rubric-score">10 / 10</div>
+      </div>
+      <div class="rubric-row">
+        <div>
+          <div>Nice-to-haves</div>
+          <div class="rubric-just">AWS ✓ · Kafka ✗ · Airflow ✓ — two of three matched.</div>
+        </div>
+        <div class="rubric-score">5 / 10</div>
+      </div>
+      <div class="rubric-row">
+        <div><b>Total</b><div class="rubric-just" style="color: var(--text);">38 + 25 + 14 + 10 + 5 = 92 · compliance check passed · no protected attributes referenced</div></div>
+        <div class="rubric-score"><b>92 / 100</b></div>
+      </div>
+    </div>
+
+    <div class="section-h">Strengths that matched your ask</div>
+    <div>
+      <div class="strength-item"><span class="check">✓</span><span>All four must-have skills (Python, SQL, Snowflake, dbt) present and evidenced as daily-use in her current role.</span></div>
+      <div class="strength-item"><span class="check">✓</span><span>Led the Monzo lakehouse migration end-to-end — matches your "owned a system end-to-end" cultural signal.</span></div>
+      <div class="strength-item"><span class="check">✓</span><span>UK financial services background (Monzo, previous role at Revolut).</span></div>
+      <div class="strength-item"><span class="check">✓</span><span>Currently in Manchester. No relocation friction.</span></div>
+    </div>
+
+    <div class="section-h">Gaps you might weigh</div>
+    <div>
+      <div class="gap-item"><span class="dash">–</span><span>Kafka is on her CV in a supporting role only; you listed it as nice-to-have. Not blocking.</span></div>
+      <div class="gap-item"><span class="dash">–</span><span>7 years total, all at one industry (financial services) — narrower cross-industry exposure than some peers.</span></div>
+    </div>
+
+    <div class="designnote">
+      <b>For Sahil:</b> this drawer is where the score, arithmetic, and reasoning live — hidden from the main table but always one click away. Preserves the Step-3 self-check discipline from the current scorer (see Code Review § 5.3). Every gap is grounded in specific resume evidence; never mentions age, gender, ethnicity, name origin, or graduation year — the compliance check runs before this drawer renders.
+    </div>
+  </div>
+
+  <div class="drawer-actions">
+    <button class="btn" style="flex: 1; justify-content: center;">Reject</button>
+    <button class="btn" style="flex: 1; justify-content: center;">Mark for later</button>
+    <button class="btn btn-primary" style="flex: 2; justify-content: center;" onclick="closeDrawer(); showPage('page-outreach');">Approve for outreach →</button>
+  </div>
+</aside>
+
+<!-- ============ MOCKUP JUMPER (only visible on mockup) ============ -->
+<div class="mockup-jumper">
+  <div class="mockup-jumper-label">Mockup navigation</div>
+  <button onclick="showLogin()">Login screen</button>
+  <button onclick="showPage('page-library')" class="here">Search library (dashboard)</button>
+  <button onclick="showPage('page-newsearch')">Start new search (form)</button>
+  <button onclick="showPage('page-progress')">Search in progress</button>
+  <button onclick="showPage('page-results')">Search results</button>
+  <button onclick="openDrawer()">Candidate detail drawer</button>
+  <button onclick="showPage('page-outreach')">Outreach queue</button>
+  <button onclick="showPage('page-settings')">Workspace settings</button>
+</div>
+
+<script>
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+  const target = document.getElementById(id);
+  if (target) target.classList.remove('hidden');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const nav = document.querySelector('.nav-item[data-target="' + id + '"]');
+  if (nav) nav.classList.add('active');
+  document.querySelectorAll('.mockup-jumper button').forEach(b => b.classList.remove('here'));
+  const buttons = document.querySelectorAll('.mockup-jumper button');
+  buttons.forEach(b => {
+    if (b.getAttribute('onclick') && b.getAttribute('onclick').includes(id)) b.classList.add('here');
+  });
+  window.scrollTo(0,0);
+}
+function showLogin() {
+  document.getElementById('page-login').classList.add('show');
+  document.getElementById('app-shell').style.display = 'none';
+  document.querySelectorAll('.mockup-jumper button').forEach(b => b.classList.remove('here'));
+  document.querySelectorAll('.mockup-jumper button')[0].classList.add('here');
+}
+function showApp() {
+  document.getElementById('page-login').classList.remove('show');
+  document.getElementById('app-shell').style.display = 'flex';
+  showPage('page-library');
+}
+function openDrawer() {
+  document.getElementById('drawer-backdrop').classList.add('open');
+  document.getElementById('drawer').classList.add('open');
+}
+function closeDrawer() {
+  document.getElementById('drawer-backdrop').classList.remove('open');
+  document.getElementById('drawer').classList.remove('open');
+}
+function toggleSection(e, el) {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA' || e.target.closest('.section-body')) return;
+  el.classList.toggle('expanded');
+}
+// Init
+showPage('page-library');
+</script>
+
+</body>
+</html>

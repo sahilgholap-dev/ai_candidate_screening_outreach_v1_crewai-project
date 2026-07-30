@@ -87,6 +87,13 @@ export type RequirementsProfile = {
   custom_weights: CustomWeights | null;
   dealbreakers: string | null;
   max_shortlist: number | null;
+  // 10. Role context & culture (client form v2)
+  role_title: string | null;
+  urgency: "standard" | "high" | "critical" | null;
+  team_context: string | null;
+  culture_text: string | null;
+  positive_signals: string[];
+  concern_signals: string[];
 };
 
 export function defaultRequirements(): RequirementsProfile {
@@ -155,6 +162,12 @@ export function defaultRequirements(): RequirementsProfile {
     custom_weights: null,
     dealbreakers: null,
     max_shortlist: null,
+    role_title: null,
+    urgency: null,
+    team_context: null,
+    culture_text: null,
+    positive_signals: [],
+    concern_signals: [],
   };
 }
 
