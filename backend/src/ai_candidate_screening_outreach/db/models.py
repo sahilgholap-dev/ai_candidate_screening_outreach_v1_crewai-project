@@ -247,7 +247,13 @@ class Candidate(Base):
     flags = Column(Text, nullable=True)  # JSON list: over_budget, overqualified, ...
     email_draft = Column(Text, nullable=True)
     sms_draft = Column(Text, nullable=True)
-    outreach_approved = Column(Boolean, default=False, nullable=False)
+    # Review workflow: pending -> approved | rejected | later; approved
+    # candidates enter the outreach queue until sent_at is stamped.
+    review_status = Column(String, default="pending", nullable=False)
+    sent_at = Column(DateTime(timezone=True), nullable=True)
+    sent_by = Column(String, nullable=True)  # reviewer email, denormalized
+    sent_email = Column(Text, nullable=True)  # final body as approved
+    sent_sms = Column(Text, nullable=True)
     # Tick-sheet: per-item judgments + per-bucket points (scoring.judgment_record)
     judgments = Column(JSON, nullable=True)
 

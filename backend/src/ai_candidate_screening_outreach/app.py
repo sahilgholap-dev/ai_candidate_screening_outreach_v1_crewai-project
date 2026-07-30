@@ -490,7 +490,6 @@ async def rerun_campaign(
 class CandidateUpdate(BaseModel):
     email_draft: str | None = None
     sms_draft: str | None = None
-    outreach_approved: bool | None = None
 
 
 @app.patch("/api/campaigns/{campaign_id}/candidates/{candidate_id}")
@@ -514,14 +513,6 @@ async def update_candidate(
     changes = body.model_dump(exclude_unset=True)
     for key, value in changes.items():
         setattr(candidate, key, value)
-    if "outreach_approved" in changes:
-        log_action(
-            db,
-            "outreach.approved" if changes["outreach_approved"] else "outreach.approval_withdrawn",
-            user=user,
-            company_id=campaign.company_id,
-            detail={"campaign_id": campaign.id, "candidate_id": candidate.id, "candidate": candidate.name},
-        )
     db.commit()
     db.refresh(candidate)
     return candidate
@@ -559,7 +550,7 @@ async def export_campaign_csv(
         [
             "Rank", "Name", "File", "Score", "Recommendation", "Hard Filter Failed",
             "Needs Info", "Flags", "Key Strengths", "Key Gaps", "Rationale",
-            "Email Draft", "SMS Draft", "Outreach Approved",
+            "Email Draft", "SMS Draft", "Review Status",
         ]
     )
     for rank, c in enumerate(candidates, start=1):
@@ -571,7 +562,7 @@ async def export_campaign_csv(
                 _json_list(c.needs_info), _json_list(c.flags),
                 _json_list(c.key_strengths), _json_list(c.key_gaps),
                 c.rationale or "", c.email_draft or "", c.sms_draft or "",
-                "Y" if c.outreach_approved else "N",
+                c.review_status or "pending",
             ]
         )
     buf.seek(0)
