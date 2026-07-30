@@ -157,6 +157,12 @@ export default function NewSearchPage() {
       return setError("Upload at least one resume");
     if (intakeMode === "folder" && !folderHandle)
       return setError("Choose a folder to watch");
+    if (!req.office_location?.trim())
+      return setError("Required location is mandatory — fill in Location & work mode");
+    if (!req.work_mode)
+      return setError("Choose a work mode in Location & work mode");
+    if (!req.dealbreakers?.trim())
+      return setError("Add at least one dealbreaker (with its one-line reason)");
 
     setSubmitting(true);
     try {
@@ -396,7 +402,7 @@ export default function NewSearchPage() {
       {/* Requirements sections */}
       <CardBox
         title="What matters beyond the JD"
-        sub="Everything below is optional. Fill in what the JD doesn't say, or where you want your answer to override it. Each item is either a preference (affects how we rank) or a hard requirement (can rule someone out). Where a section can rule someone out, we say so clearly."
+        sub="Location & work mode and Absolute dealbreakers are required — they can rule candidates out, so we need your answer. Everything else is optional: fill in what the JD doesn't say, or where you want your answer to override it. Preferences affect how we rank; hard requirements can rule someone out."
       >
         <AccordionSection
           title="Team & seniority"
@@ -465,7 +471,7 @@ export default function NewSearchPage() {
 
         <AccordionSection
           title="Location & work mode"
-          desc="Where the candidate needs to be. This is the one section we let you set as a hard requirement by default."
+          desc="Required. Where the candidate needs to be — this can rule candidates out."
           pill="hard"
           defaultOpen
         >
@@ -623,151 +629,6 @@ export default function NewSearchPage() {
         </AccordionSection>
 
         <AccordionSection
-          title="Compensation context"
-          desc="Your budget range. We flag over-budget candidates — we never drop them."
-          pill="flag"
-        >
-          <div className="mb-4 grid gap-4 sm:grid-cols-3">
-            <Field label="Minimum (annual)">
-              <Input
-                type="number"
-                value={req.budget_min ?? ""}
-                onChange={(e) =>
-                  set(
-                    "budget_min",
-                    e.target.value ? Number(e.target.value) : null,
-                  )
-                }
-              />
-            </Field>
-            <Field label="Maximum (annual)">
-              <Input
-                type="number"
-                value={req.budget_max ?? ""}
-                onChange={(e) =>
-                  set(
-                    "budget_max",
-                    e.target.value ? Number(e.target.value) : null,
-                  )
-                }
-              />
-            </Field>
-            <Field label="Currency">
-              <Select
-                items={{ GBP: "GBP", USD: "USD", INR: "INR" }}
-                value={req.budget_currency ?? "INR"}
-                onValueChange={(v) =>
-                  set(
-                    "budget_currency",
-                    v as RequirementsProfile["budget_currency"],
-                  )
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="GBP">GBP</SelectItem>
-                  <SelectItem value="USD">USD</SelectItem>
-                  <SelectItem value="INR">INR</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-          </div>
-          <InfoBanner>
-            Salary is almost never a good reason to rule someone out —
-            negotiation, non-cash comp, and role-scope adjustments all move
-            numbers. Over-budget candidates appear in your results with a small
-            &quot;over budget&quot; badge.
-          </InfoBanner>
-        </AccordionSection>
-
-        <AccordionSection
-          title="Availability & start date"
-          desc="Notice period, travel, shift timing."
-          pill="pref"
-        >
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Field label="Maximum notice period they can be on">
-              <Select
-                items={{
-                  any: "Any",
-                  "30": "1 month",
-                  "60": "2 months",
-                  "90": "3 months",
-                }}
-                value={req.max_notice_days ? String(req.max_notice_days) : "any"}
-                onValueChange={(v) => {
-                  set("max_notice_days", v === "any" ? null : Number(v));
-                  set("availability_mode", v === "any" ? "off" : "preference");
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="any">Any</SelectItem>
-                  <SelectItem value="30">1 month</SelectItem>
-                  <SelectItem value="60">2 months</SelectItem>
-                  <SelectItem value="90">3 months</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field label="Willing to travel?">
-              <Select
-                items={{
-                  any: "No requirement",
-                  "20": "Occasional (up to 20%)",
-                  "50": "Frequent (up to 50%)",
-                }}
-                value={
-                  req.travel_percent_max ? String(req.travel_percent_max) : "any"
-                }
-                onValueChange={(v) =>
-                  set("travel_percent_max", v === "any" ? null : Number(v))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="any">No requirement</SelectItem>
-                  <SelectItem value="20">Occasional (up to 20%)</SelectItem>
-                  <SelectItem value="50">Frequent (up to 50%)</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field label="Shift timing">
-              <Select
-                items={{
-                  any: "Business hours",
-                  day: "Day shift",
-                  night: "Night shift",
-                  rotational: "Rotational",
-                }}
-                value={req.shift ?? "any"}
-                onValueChange={(v) =>
-                  set(
-                    "shift",
-                    v === "any" ? null : (v as RequirementsProfile["shift"]),
-                  )
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="any">Business hours</SelectItem>
-                  <SelectItem value="day">Day shift</SelectItem>
-                  <SelectItem value="night">Night shift</SelectItem>
-                  <SelectItem value="rotational">Rotational</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-          </div>
-        </AccordionSection>
-
-        <AccordionSection
           title="What makes someone thrive here"
           desc="The qualitative signal the JD never captures. Two or three sentences is enough."
           pill="pref"
@@ -805,8 +666,9 @@ export default function NewSearchPage() {
 
         <AccordionSection
           title="Absolute dealbreakers"
-          desc="The explicit &quot;never&quot; list. Anything here rules someone out immediately — we log each rejection with the reason you give."
+          desc="Required. The explicit &quot;never&quot; list — anything here rules someone out immediately, and we log each rejection with the reason you give."
           pill="hard"
+          defaultOpen
         >
           <Field
             label="Dealbreakers (each one needs a one-line reason)"
