@@ -52,7 +52,7 @@ export type LibraryStatusKind =
 
 export function libraryStatus(row: {
   status: string;
-  counts: { pending_review: number };
+  counts?: { pending_review: number };
 }): { kind: LibraryStatusKind; label: string } {
   switch (row.status) {
     case "Error":
@@ -65,7 +65,8 @@ export function libraryStatus(row: {
     case "Processing":
       return { kind: "running", label: "Running" };
     default:
-      return row.counts.pending_review > 0
+      // counts may be absent in a stale client cache — never crash the list
+      return (row.counts?.pending_review ?? 0) > 0
         ? { kind: "review", label: "Awaiting review" }
         : { kind: "complete", label: "Completed" };
   }
