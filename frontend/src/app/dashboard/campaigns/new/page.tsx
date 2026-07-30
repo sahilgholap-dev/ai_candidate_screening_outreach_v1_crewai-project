@@ -106,7 +106,10 @@ export default function NewSearchPage() {
   const [name, setName] = useState("");
   const [jdFile, setJdFile] = useState<File | null>(null);
   const [resumeFiles, setResumeFiles] = useState<File[]>([]);
-  const [intakeMode, setIntakeMode] = useState<"upload" | "folder">("upload");
+  const [intakeMode, setIntakeMode] = useState<
+    "upload" | "folder" | "database"
+  >("upload");
+  const [dbMode, setDbMode] = useState<"bucket" | "ranked" | null>(null);
   const [folderHandle, setFolderHandle] =
     useState<FileSystemDirectoryHandle | null>(null);
   const [folderFiles, setFolderFiles] = useState<File[]>([]);
@@ -153,6 +156,10 @@ export default function NewSearchPage() {
     if (!name.trim()) return setError("Search name is required");
     if (!req.role_title?.trim()) return setError("Role title is required");
     if (!jdFile) return setError("Upload the job description");
+    if (intakeMode === "database")
+      return setError(
+        "Database connections aren't live yet — this preview is pending approval. Use file upload or a watched folder for now.",
+      );
     if (intakeMode === "upload" && resumeFiles.length === 0)
       return setError("Upload at least one resume");
     if (intakeMode === "folder" && !folderHandle)
@@ -342,6 +349,17 @@ export default function NewSearchPage() {
           >
             Watch a folder
           </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={intakeMode === "database" ? "default" : "outline"}
+            onClick={() => setIntakeMode("database")}
+          >
+            Connect database
+            <span className="ml-1 rounded-full bg-verdict-hold-soft px-1.5 py-px text-[10px] font-bold text-amber-800">
+              SOON
+            </span>
+          </Button>
         </div>
         {!folderSupported && (
           <p className="-mt-2 mb-3 text-xs text-muted-foreground">
@@ -379,7 +397,7 @@ export default function NewSearchPage() {
               </p>
             )}
           </>
-        ) : (
+        ) : intakeMode === "folder" ? (
           <div className="space-y-3">
             <Button type="button" variant="outline" onClick={chooseFolder}>
               {folderHandle ? "Change folder…" : "Choose folder…"}
@@ -394,6 +412,55 @@ export default function NewSearchPage() {
               Folder watching syncs while the app is open in your browser.
               Resumes dropped in while it&apos;s closed are picked up the next
               time you open it.
+            </InfoBanner>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => setDbMode("bucket")}
+                className={`rounded-lg border p-4 text-left transition-colors ${
+                  dbMode === "bucket"
+                    ? "border-primary bg-verdict-pass-soft"
+                    : "border-border bg-white hover:border-input"
+                }`}
+              >
+                <div className="text-[13.5px] font-semibold">
+                  Pick a bucket from your database
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Your system labels CVs (e.g. &quot;ai-analyst&quot;). Choose
+                  that bucket here — every CV in it is screened, and each new
+                  CV arriving with that label is screened live, automatically.
+                </p>
+              </button>
+              <button
+                type="button"
+                onClick={() => setDbMode("ranked")}
+                className={`rounded-lg border p-4 text-left transition-colors ${
+                  dbMode === "ranked"
+                    ? "border-primary bg-verdict-pass-soft"
+                    : "border-border bg-white hover:border-input"
+                }`}
+              >
+                <div className="text-[13.5px] font-semibold">
+                  Smart-match your whole CV pool
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  No labels needed — we instantly rank your entire pool
+                  (thousands of CVs) against this role for free, and screen
+                  only the strongest matches. New strong matches are screened
+                  as they arrive.
+                </p>
+              </button>
+            </div>
+            <InfoBanner>
+              <b>Coming soon.</b> Database connections are set up with your
+              MasterTech onboarder — your system delivers new CVs to a secure
+              NEXUS inbox and they flow into searches automatically. This
+              preview shows how it will work; it can&apos;t start a search
+              yet.
             </InfoBanner>
           </div>
         )}
