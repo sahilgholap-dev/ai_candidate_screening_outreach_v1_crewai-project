@@ -2,46 +2,25 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { use, useState } from "react";
+import { use, useEffect, useMemo, useRef, useState } from "react";
 
-import { ScoreTile, verdictFor } from "@/components/score-tile";
+import { BandStrip } from "@/components/band-strip";
+import { CandidateDrawer } from "@/components/candidate-drawer";
+import { FilterChip } from "@/components/filter-chip";
+import { ProgressHero } from "@/components/progress-hero";
 import { Shell } from "@/components/shell";
-import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
+import { Band, BAND_META, RECOMMENDED_BANDS } from "@/lib/bands";
+import {
+  CandidateRow,
+  candidateMeta,
+  signalsFor,
+} from "@/lib/candidates";
 import { moveBinding } from "@/lib/folder-watch";
-
-type Judgments = {
-  required_skills: { skill: string; present: boolean; core: boolean }[];
-  preferred_skills: { skill: string; present: boolean }[];
-  must_haves: { item: string; status: string }[];
-  estimated_total_years: number | null;
-  education_status: string;
-  breakdown: {
-    buckets: Record<string, { points: number; cap: number }>;
-    total: number;
-  } | null;
-};
-
-type CandidateRow = {
-  id: number;
-  name: string | null;
-  original_filename: string;
-  score: number | null;
-  recommendation: string | null;
-  hard_filter_failed: boolean;
-  key_strengths: string | null;
-  key_gaps: string | null;
-  needs_info: string | null;
-  flags: string | null;
-  rationale: string | null;
-  email_draft: string | null;
-  sms_draft: string | null;
-  outreach_approved: boolean;
-  judgments: Judgments | null;
-};
+import { relTime } from "@/lib/relative-time";
+import { MyCompany } from "@/lib/requirements";
 
 type CampaignDetail = {
   campaign: {
@@ -53,347 +32,133 @@ type CampaignDetail = {
     error_message: string | null;
     intake_mode: "upload" | "folder";
     folder_name: string | null;
+    unified_profile: unknown;
+    finished_at: string | null;
   };
   candidates: CandidateRow[];
   processed_count: number;
   total_count: number;
 };
 
-type Tab = "all" | "shortlist" | "needs_info" | "flagged" | "rejected";
+const RUNNING_STATUSES = new Set(["Watching", "Queued", "Processing"]);
 
-const RAIL: Record<string, string> = {
-  pass: "border-l-verdict-pass",
-  hold: "border-l-verdict-hold",
-  fail: "border-l-verdict-fail",
-  none: "border-l-border",
-};
+const RESULT_FILTERS = [
+  "recommended",
+  "not_reviewed",
+  "approved",
+  "over_budget",
+  "flagged",
+] as const;
+type ResultFilter = (typeof RESULT_FILTERS)[number];
 
-function parseList(json: string | null): string[] {
-  if (!json) return [];
-  try {
-    const v = JSON.parse(json);
-    return Array.isArray(v) ? v : [];
-  } catch {
-    return [];
-  }
+// Rolling (time, processed) samples -> "~N min remaining". Sampling happens in
+// an async callback so render stays pure (React Compiler rules).
+function useEta(processed: number, total: number, active: boolean) {
+  const [eta, setEta] = useState<string | null>(null);
+  const samples = useRef<{ t: number; processed: number }[]>([]);
+
+  useEffect(() => {
+    const id = setTimeout(() => {
+      if (!active) {
+        samples.current = [];
+        setEta(null);
+        return;
+      }
+      const list = samples.current;
+      const last = list[list.length - 1];
+      if (!last || last.processed !== processed) {
+        list.push({ t: Date.now(), processed });
+        if (list.length > 6) list.shift();
+      }
+      if (list.length >= 2) {
+        const first = list[0];
+        const newest = list[list.length - 1];
+        const done = newest.processed - first.processed;
+        if (done > 0) {
+          const secPer = (newest.t - first.t) / 1000 / done;
+          const remaining = Math.max(0, (total - processed) * secPer);
+          setEta(
+            remaining < 90 ? "under 2 min" : `~${Math.round(remaining / 60)} min`,
+          );
+          return;
+        }
+      }
+      setEta(null);
+    }, 0);
+    return () => clearTimeout(id);
+  }, [processed, total, active]);
+
+  return eta;
 }
 
-function recVariant(rec: string | null) {
-  if (!rec) return "secondary" as const;
-  const r = rec.toLowerCase();
-  if (r.includes("shortlist")) return "default" as const;
-  if (r.includes("maybe") || r.includes("duplicate")) return "secondary" as const;
-  return "destructive" as const;
-}
-
-function OutreachEditor({
-  campaignId,
-  candidate,
-}: {
-  campaignId: number;
-  candidate: CandidateRow;
-}) {
-  const queryClient = useQueryClient();
-  const [email, setEmail] = useState(candidate.email_draft ?? "");
-  const [sms, setSms] = useState(candidate.sms_draft ?? "");
-
-  const save = useMutation({
-    mutationFn: (payload: object) =>
-      api(`/campaigns/${campaignId}/candidates/${candidate.id}`, {
-        method: "PATCH",
-        body: JSON.stringify(payload),
-      }),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["campaign", String(campaignId)] }),
-  });
-
-  const dirty =
-    email !== (candidate.email_draft ?? "") || sms !== (candidate.sms_draft ?? "");
-
-  return (
-    <div className="space-y-4">
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Email draft</Label>
-        <Textarea
-          rows={10}
-          className="bg-card"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-      </div>
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">SMS draft</Label>
-        <Textarea
-          rows={2}
-          className="bg-card"
-          value={sms}
-          onChange={(e) => setSms(e.target.value)}
-        />
-        <p className="data-value text-xs text-muted-foreground">
-          {sms.length}/160 characters
-        </p>
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={!dirty || save.isPending}
-          onClick={() => save.mutate({ email_draft: email, sms_draft: sms })}
-        >
-          {save.isPending ? "Saving…" : "Save drafts"}
-        </Button>
-        <Button
-          size="sm"
-          variant={candidate.outreach_approved ? "secondary" : "default"}
-          disabled={save.isPending}
-          onClick={() =>
-            save.mutate(
-              dirty
-                ? {
-                    email_draft: email,
-                    sms_draft: sms,
-                    outreach_approved: !candidate.outreach_approved,
-                  }
-                : { outreach_approved: !candidate.outreach_approved },
-            )
-          }
-        >
-          {candidate.outreach_approved ? "Withdraw approval" : "Approve outreach"}
-        </Button>
-        {candidate.outreach_approved && <Badge>Approved for sending</Badge>}
-      </div>
-      <p className="text-xs text-muted-foreground">
-        Messages are drafts only — nothing is ever sent automatically. Export
-        the CSV to use approved drafts in your mail tool.
-      </p>
-    </div>
-  );
-}
-
-const BUCKET_LABELS: Record<string, string> = {
-  required_skills: "Required skills",
-  must_haves: "Must-haves",
-  experience: "Experience",
-  education: "Education",
-  preferred_skills: "Preferred skills",
-};
-
-function Tick({ ok }: { ok: boolean }) {
-  return (
-    <span className={ok ? "text-verdict-pass" : "text-verdict-fail"}>
-      {ok ? "✓" : "✗"}
-    </span>
-  );
-}
-
-function TickSheet({ judgments }: { judgments: Judgments }) {
-  const buckets = judgments.breakdown?.buckets;
-  return (
-    <div className="space-y-4">
-      {buckets && (
-        <div>
-          <h4 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Score breakdown
-          </h4>
-          <div className="grid grid-cols-2 gap-x-6 gap-y-1 sm:grid-cols-3">
-            {Object.entries(BUCKET_LABELS).map(([key, label]) => {
-              const b = buckets[key];
-              if (!b) return null;
-              return (
-                <div key={key} className="flex items-baseline justify-between gap-2 text-sm">
-                  <span className="text-muted-foreground">{label}</span>
-                  <span className="data-value font-medium">
-                    {b.points}/{b.cap}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-      {judgments.required_skills.length > 0 && (
-        <div>
-          <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Required skills — on resume?
-          </h4>
-          <ul className="grid gap-x-6 gap-y-0.5 text-sm sm:grid-cols-2">
-            {judgments.required_skills.map((s, i) => (
-              <li key={i} className="flex items-start gap-1.5">
-                <Tick ok={s.present} />
-                <span className={s.present ? "" : "text-muted-foreground"}>
-                  {s.skill}
-                  {s.core && (
-                    <span className="ml-1 rounded bg-primary/10 px-1 text-[10px] font-semibold uppercase text-primary">
-                      core
-                    </span>
-                  )}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {judgments.must_haves.length > 0 && (
-        <div>
-          <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Must-haves
-          </h4>
-          <ul className="space-y-0.5 text-sm">
-            {judgments.must_haves.map((m, i) => (
-              <li key={i} className="flex items-start gap-1.5">
-                {m.status === "unmet" ? (
-                  <Tick ok={false} />
-                ) : m.status === "met" ? (
-                  <Tick ok={true} />
-                ) : (
-                  <span className="text-verdict-hold">?</span>
-                )}
-                <span className={m.status === "met" ? "" : "text-muted-foreground"}>
-                  {m.item}
-                  {m.status === "unknown" && " (not stated on resume)"}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {judgments.preferred_skills.length > 0 && (
-        <div>
-          <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Preferred skills
-          </h4>
-          <ul className="grid gap-x-6 gap-y-0.5 text-sm sm:grid-cols-2">
-            {judgments.preferred_skills.map((s, i) => (
-              <li key={i} className="flex items-start gap-1.5">
-                <Tick ok={s.present} />
-                <span className={s.present ? "" : "text-muted-foreground"}>
-                  {s.skill}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      <p className="text-xs text-muted-foreground">
-        Experience:{" "}
-        <span className="data-value">
-          {judgments.estimated_total_years != null
-            ? `~${judgments.estimated_total_years} yrs from work history`
-            : "no duration evidence on resume"}
-        </span>
-        {" · "}Education requirement:{" "}
-        <span className="data-value">{judgments.education_status}</span>
-      </p>
-    </div>
-  );
-}
-
-function CandidateDetail({
-  campaignId,
-  candidate,
-}: {
-  campaignId: number;
-  candidate: CandidateRow;
-}) {
-  const strengths = parseList(candidate.key_strengths);
-  const gaps = parseList(candidate.key_gaps);
-  const needsInfo = parseList(candidate.needs_info);
-  const isShortlisted = (candidate.recommendation ?? "")
-    .toLowerCase()
-    .includes("shortlist");
-
-  return (
-    <div className="space-y-6 border-t bg-muted/40 p-4 sm:p-5">
-      {candidate.judgments && !candidate.hard_filter_failed && (
-        <TickSheet judgments={candidate.judgments} />
-      )}
-      <div className="grid gap-6 lg:grid-cols-2">
-      <div className="space-y-4">
-        {candidate.rationale && (
-          <div>
-            <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {candidate.hard_filter_failed ? "Hard-filter evidence" : "Rationale"}
-            </h4>
-            <p className="text-sm leading-relaxed">{candidate.rationale}</p>
-          </div>
-        )}
-        {strengths.length > 0 && (
-          <div>
-            <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-verdict-pass">
-              Strengths
-            </h4>
-            <ul className="list-disc space-y-0.5 pl-5 text-sm text-muted-foreground">
-              {strengths.map((s, i) => (
-                <li key={i}>{s}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-        {gaps.length > 0 && (
-          <div>
-            <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-verdict-fail">
-              Gaps
-            </h4>
-            <ul className="list-disc space-y-0.5 pl-5 text-sm text-muted-foreground">
-              {gaps.map((g, i) => (
-                <li key={i}>{g}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-        {needsInfo.length > 0 && (
-          <div>
-            <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-verdict-hold">
-              Verify before proceeding
-            </h4>
-            <ul className="list-disc space-y-0.5 pl-5 text-sm text-muted-foreground">
-              {needsInfo.map((n, i) => (
-                <li key={i}>{n}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-      <div>
-        {isShortlisted ? (
-          <OutreachEditor campaignId={campaignId} candidate={candidate} />
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            Outreach drafts are prepared for shortlisted candidates only.
-          </p>
-        )}
-      </div>
-      </div>
-    </div>
-  );
-}
-
-export default function CampaignDetailPage({
+export default function SearchDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const [tab, setTab] = useState<Tab>("all");
-  const [openId, setOpenId] = useState<number | null>(null);
-  const queryClient = useQueryClient();
   const router = useRouter();
+  const queryClient = useQueryClient();
+
+  const [drawerId, setDrawerId] = useState<number | null>(null);
+  const [bandFilter, setBandFilter] = useState<Band | null>(null);
+  const [chipFilter, setChipFilter] = useState<ResultFilter>("recommended");
+  const [search, setSearch] = useState("");
 
   const { data } = useQuery<CampaignDetail>({
     queryKey: ["campaign", id],
     queryFn: () => api(`/campaigns/${id}`),
     refetchInterval: (query) => {
-      const s = query.state.data?.campaign.status;
-      if (s === "Processing" || s === "Queued") return 5000;
-      // Watched-folder campaigns can go Queued at any time (new file drop)
-      const mode = query.state.data?.campaign.intake_mode;
-      return mode === "folder" ? 15000 : false;
+      const c = query.state.data?.campaign;
+      if (!c) return 5000;
+      if (c.status === "Processing" || c.status === "Queued") return 5000;
+      // Watched-folder searches can go Queued at any time (new file drop)
+      return c.intake_mode === "folder" ? 15000 : false;
     },
+  });
+  const { data: company } = useQuery<MyCompany>({
+    queryKey: ["my-company"],
+    queryFn: () => api("/my/company"),
   });
 
   const campaign = data?.campaign;
-  const processing =
-    campaign?.status === "Processing" || campaign?.status === "Queued";
+  const candidates = useMemo(() => data?.candidates ?? [], [data]);
+  const running = campaign ? RUNNING_STATUSES.has(campaign.status) : false;
+
+  const bandCounts = useMemo(() => {
+    const counts = { ideal: 0, good: 0, moderate: 0, not_fit: 0, unscored: 0 };
+    for (const c of candidates) counts[c.band] += 1;
+    return counts;
+  }, [candidates]);
+  const recommended = bandCounts.ideal + bandCounts.good;
+  const dealbreakerCount = candidates.filter((c) => c.hard_filter_failed).length;
+
+  const review = useMutation({
+    mutationFn: ({
+      candidateId,
+      status,
+    }: {
+      candidateId: number;
+      status: CandidateRow["review_status"];
+    }) =>
+      api(`/campaigns/${id}/candidates/${candidateId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ review_status: status }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["campaign", id] });
+      queryClient.invalidateQueries({ queryKey: ["outreach-queue"] });
+      queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+    },
+  });
+
+  const cancel = useMutation({
+    mutationFn: () => api(`/campaigns/${id}/cancel`, { method: "POST" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["campaign", id] });
+      queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+    },
+  });
 
   const retry = useMutation({
     mutationFn: () => api(`/campaigns/${id}/retry`, { method: "POST" }),
@@ -401,8 +166,8 @@ export default function CampaignDetailPage({
       queryClient.invalidateQueries({ queryKey: ["campaign", id] }),
   });
 
-  // Clones the campaign (same JD, requirements, parsed resumes) and queues
-  // the copy — this run's results stay intact for side-by-side comparison.
+  // Clones the search (same JD, requirements, parsed resumes) and queues the
+  // copy — this run's results stay intact for side-by-side comparison.
   const rerun = useMutation({
     mutationFn: () =>
       api<{ campaign_id: number }>(`/campaigns/${id}/rerun`, { method: "POST" }),
@@ -414,226 +179,417 @@ export default function CampaignDetailPage({
     },
   });
 
-  const counts = {
-    all: data?.candidates.length ?? 0,
-    shortlist:
-      data?.candidates.filter((c) =>
-        (c.recommendation ?? "").toLowerCase().includes("shortlist"),
-      ).length ?? 0,
-    needs_info:
-      data?.candidates.filter((c) => parseList(c.needs_info).length > 0).length ?? 0,
-    flagged:
-      data?.candidates.filter((c) => parseList(c.flags).length > 0).length ?? 0,
-    rejected:
-      data?.candidates.filter((c) =>
-        (c.recommendation ?? "").toLowerCase().includes("reject"),
-      ).length ?? 0,
+  // ---------- Progress derivations ----------
+  const processed = data?.processed_count ?? 0;
+  const total = data?.total_count ?? 0;
+  const etaLabel = useEta(processed, total, campaign?.status === "Processing");
+
+  const statusLabel =
+    campaign?.status === "Watching"
+      ? "Watching folder"
+      : campaign?.status === "Queued"
+        ? "Queued"
+        : "Working";
+  const currentLine =
+    campaign?.status === "Watching"
+      ? "Waiting for the first resumes to appear in the folder"
+      : campaign?.status === "Queued"
+        ? "In line behind another search — starting shortly"
+        : `Scoring candidate ${Math.min(processed + 1, total)} of ${total} against ${company?.name ?? "your"} requirements`;
+
+  const jdRead = Boolean(campaign?.unified_profile) || processed > 0;
+  const stages = [
+    {
+      name: "Reading the JD",
+      detail: "Merging the job description with your form answers into one checklist.",
+      state: jdRead ? ("done" as const) : campaign?.status === "Processing" ? ("active" as const) : ("todo" as const),
+    },
+    {
+      name: `Parsing ${total || ""} resumes`.trim(),
+      detail: "Extracting text and contact details from every file.",
+      state:
+        processed > 0
+          ? ("done" as const)
+          : campaign?.status === "Processing" && jdRead
+            ? ("active" as const)
+            : ("todo" as const),
+    },
+    {
+      name: "Scoring & ranking",
+      detail: "Applying dealbreakers and the five-bucket scoring rubric to each candidate.",
+      state:
+        campaign?.status === "Processing" && processed > 0
+          ? ("active" as const)
+          : processed === total && total > 0 && !running
+            ? ("done" as const)
+            : ("todo" as const),
+    },
+    {
+      name: "Drafting outreach",
+      detail: "For everyone in the Ideal Match and Good Fit bands, in your company's voice.",
+      state: !running && total > 0 ? ("done" as const) : ("todo" as const),
+    },
+  ];
+
+  // ---------- Results derivations ----------
+  const visible = useMemo(() => {
+    let rows = candidates.filter((c) => c.band !== "unscored");
+    if (bandFilter) {
+      rows = rows.filter((c) => c.band === bandFilter);
+    } else {
+      switch (chipFilter) {
+        case "recommended":
+          rows = rows.filter((c) => RECOMMENDED_BANDS.includes(c.band));
+          break;
+        case "not_reviewed":
+          rows = rows.filter(
+            (c) =>
+              RECOMMENDED_BANDS.includes(c.band) && c.review_status === "pending",
+          );
+          break;
+        case "approved":
+          rows = rows.filter((c) => c.review_status === "approved");
+          break;
+        case "over_budget":
+          rows = rows.filter((c) => (c.flags ?? "").includes("over_budget"));
+          break;
+        case "flagged":
+          rows = rows.filter(
+            (c) =>
+              signalsFor(c).length > 0 &&
+              RECOMMENDED_BANDS.includes(c.band),
+          );
+          break;
+      }
+    }
+    const q = search.trim().toLowerCase();
+    if (q) {
+      rows = rows.filter(
+        (c) =>
+          (c.name ?? c.original_filename).toLowerCase().includes(q) ||
+          (c.rationale ?? "").toLowerCase().includes(q),
+      );
+    }
+    const order: Record<string, number> = {
+      ideal: 0,
+      good: 1,
+      moderate: 2,
+      not_fit: 3,
+      unscored: 4,
+    };
+    return [...rows].sort(
+      (a, b) => order[a.band] - order[b.band] || (b.score ?? -1) - (a.score ?? -1),
+    );
+  }, [candidates, bandFilter, chipFilter, search]);
+
+  const drawerCandidate = candidates.find((c) => c.id === drawerId) ?? null;
+
+  const chipLabel: Record<ResultFilter, string> = {
+    recommended: `All ${recommended} recommended`,
+    not_reviewed: "Not yet reviewed",
+    approved: "Approved",
+    over_budget: "Over budget",
+    flagged: "Flagged",
   };
 
-  const visible = (data?.candidates ?? []).filter((c) => {
-    const rec = (c.recommendation ?? "").toLowerCase();
-    switch (tab) {
-      case "shortlist":
-        return rec.includes("shortlist");
-      case "needs_info":
-        return parseList(c.needs_info).length > 0;
-      case "flagged":
-        return parseList(c.flags).length > 0;
-      case "rejected":
-        return rec.includes("reject");
-      default:
-        return true;
-    }
-  });
-
-  const TABS: [Tab, string, number][] = [
-    ["all", "All", counts.all],
-    ["shortlist", "Shortlisted", counts.shortlist],
-    ["needs_info", "Needs info", counts.needs_info],
-    ["flagged", "Flagged", counts.flagged],
-    ["rejected", "Rejected", counts.rejected],
-  ];
+  // ---------- Render ----------
+  const showProgress = running;
 
   return (
     <Shell
-      title={campaign?.name ?? "Campaign"}
+      title={campaign?.name ?? "Search"}
+      subtitle={
+        showProgress
+          ? "Search in progress"
+          : campaign
+            ? `${total} candidates reviewed · ${recommended} recommended${
+                campaign.status === "Completed" && campaign.finished_at
+                  ? ` · Completed ${relTime(campaign.finished_at)}`
+                  : campaign.status === "Cancelled"
+                    ? " · Cancelled"
+                    : ""
+              }`
+            : undefined
+      }
       actions={
         campaign && (
           <div className="flex items-center gap-2">
-            {(campaign.status === "Completed" || campaign.status === "Error") && (
+            {showProgress && (
               <Button
                 size="sm"
                 variant="outline"
-                disabled={rerun.isPending}
-                onClick={() => rerun.mutate()}
-                title="Clones this campaign (same JD, requirements, and resumes) and runs it again — this run's results are kept for comparison"
+                className="border-red-300 text-verdict-fail hover:bg-verdict-fail-soft"
+                disabled={cancel.isPending}
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      "Cancel this search? Partial results are kept.",
+                    )
+                  ) {
+                    cancel.mutate();
+                  }
+                }}
               >
-                {rerun.isPending ? "Cloning…" : "Run again"}
+                {cancel.isPending ? "Cancelling…" : "Cancel search"}
               </Button>
             )}
-            <a
-              href={`/api/backend/campaigns/${campaign.id}/export.csv`}
-              className={buttonVariants({ variant: "outline", size: "sm" })}
-            >
-              Export CSV
-            </a>
+            {!showProgress && (
+              <>
+                {(campaign.status === "Completed" ||
+                  campaign.status === "Error") && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={rerun.isPending}
+                    onClick={() => rerun.mutate()}
+                    title="Clones this search (same JD, requirements, and resumes) and runs it again — this run's results are kept for comparison"
+                  >
+                    {rerun.isPending ? "Cloning…" : "Run again"}
+                  </Button>
+                )}
+                <a
+                  href={`/api/backend/campaigns/${campaign.id}/export.csv`}
+                  className={buttonVariants({ variant: "outline", size: "sm" })}
+                >
+                  ↓ Export to Excel
+                </a>
+                <Button
+                  size="sm"
+                  onClick={() => router.push("/dashboard/outreach")}
+                >
+                  Review outreach drafts →
+                </Button>
+              </>
+            )}
           </div>
         )
       }
     >
-      <div className="space-y-5">
-        {campaign && (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-            <Badge
-              variant={
-                campaign.status === "Completed"
-                  ? "default"
-                  : campaign.status === "Error"
-                    ? "destructive"
-                    : "secondary"
-              }
-            >
-              {campaign.status}
-            </Badge>
-            <span className="data-value text-muted-foreground">
-              cut-off {campaign.threshold} · {campaign.region ?? "—"}
-            </span>
-            {campaign.intake_mode === "folder" && (
-              <span className="text-muted-foreground">
-                📁 Watching “{campaign.folder_name ?? "folder"}”
-                {campaign.status === "Watching"
-                  ? " — waiting for the first resumes to appear in the folder."
-                  : " — new resumes in this folder are screened automatically while the app is open."}
-              </span>
-            )}
-            {processing && data && (
-              <span className="flex items-center gap-2 text-muted-foreground">
-                <span className="h-2 w-2 animate-pulse rounded-full bg-verdict-hold" />
-                <span className="data-value">
-                  {data.processed_count}/{data.total_count}
-                </span>
-                evaluated
-              </span>
-            )}
-          </div>
-        )}
+      {!data && <p className="text-sm text-muted-foreground">Loading…</p>}
 
-        {campaign?.status === "Error" && (
-          <div className="flex flex-col gap-3 rounded-lg border border-verdict-fail/30 bg-verdict-fail-soft p-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0">
-              <p className="font-medium text-verdict-fail">
-                This run failed before completing.
-              </p>
-              {campaign.error_message && (
-                <pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap break-words text-xs text-verdict-fail/90">
-                  {campaign.error_message}
-                </pre>
-              )}
-              <p className="mt-2 text-xs text-muted-foreground">
-                Uploaded resumes and the job description are kept — running
-                again re-queues the same campaign.
-              </p>
-            </div>
-            <Button
-              size="sm"
-              className="shrink-0"
-              disabled={retry.isPending}
-              onClick={() => retry.mutate()}
-            >
-              {retry.isPending ? "Re-queuing…" : "Run campaign again"}
-            </Button>
-          </div>
-        )}
+      {campaign?.intake_mode === "folder" && (
+        <p className="mb-4 text-[13px] text-muted-foreground">
+          📁 Watching “{campaign.folder_name ?? "folder"}”
+          {campaign.status === "Watching"
+            ? " — waiting for the first resumes to appear in the folder."
+            : campaign.status === "Cancelled"
+              ? " — watching stopped with the search."
+              : " — new resumes in this folder are screened automatically while the app is open."}
+        </p>
+      )}
 
-        {/* Verdict filter */}
-        <div className="flex gap-1.5 overflow-x-auto pb-1">
-          {TABS.map(([key, label, count]) => (
-            <button
-              key={key}
-              onClick={() => setTab(key)}
-              className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
-                tab === key
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground"
-              }`}
-            >
-              {label}
-              <span className="data-value text-xs opacity-70">{count}</span>
-            </button>
-          ))}
+      {showProgress && campaign && (
+        <ProgressHero
+          statusLabel={statusLabel}
+          currentLine={currentLine}
+          processed={processed}
+          total={total}
+          recommended={recommended}
+          etaLabel={etaLabel}
+          stages={stages}
+        />
+      )}
+
+      {campaign?.status === "Cancelled" && (
+        <div className="mb-5 rounded-lg border bg-gray-soft px-4 py-3 text-[13px] text-muted-foreground">
+          This search was cancelled — results below are partial.
         </div>
+      )}
 
-        {!data && <p className="text-muted-foreground">Loading…</p>}
-        {data && visible.length === 0 && (
-          <div className="rounded-lg border border-dashed bg-card p-8 text-center text-sm text-muted-foreground">
-            No candidates in this view.
+      {campaign?.status === "Error" && (
+        <div className="mb-5 flex flex-col gap-3 rounded-lg border border-red-200 bg-verdict-fail-soft p-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-verdict-fail">
+              This run failed before completing.
+            </p>
+            {campaign.error_message && (
+              <pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap break-words text-xs text-verdict-fail/90">
+                {campaign.error_message}
+              </pre>
+            )}
           </div>
-        )}
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={retry.isPending}
+            onClick={() => retry.mutate()}
+          >
+            {retry.isPending ? "Re-queuing…" : "Try again"}
+          </Button>
+        </div>
+      )}
 
-        <ul className="space-y-2">
-          {visible.map((c) => {
-            const verdict = verdictFor(c.recommendation, c.hard_filter_failed);
-            const needsInfo = parseList(c.needs_info);
-            const flags = parseList(c.flags);
-            const open = openId === c.id;
-            return (
-              <li
-                key={c.id}
-                className={`overflow-hidden rounded-lg border border-l-3 bg-card ${RAIL[verdict]}`}
+      {!showProgress && campaign && candidates.length > 0 && (
+        <>
+          <BandStrip
+            counts={bandCounts}
+            subLines={
+              dealbreakerCount > 0
+                ? {
+                    not_fit: `Includes ${dealbreakerCount} dealbreaker rejection${dealbreakerCount === 1 ? "" : "s"}`,
+                  }
+                : undefined
+            }
+            active={bandFilter}
+            onSelect={setBandFilter}
+          />
+
+          <div className="mb-[18px] flex flex-wrap items-center gap-2">
+            <Input
+              placeholder="Search candidates…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-auto min-w-60 max-w-xs px-3 py-[7px] text-[13px]"
+            />
+            {RESULT_FILTERS.map((f) => (
+              <FilterChip
+                key={f}
+                active={!bandFilter && chipFilter === f}
+                onClick={() => {
+                  setBandFilter(null);
+                  setChipFilter(f);
+                }}
               >
-                <button
-                  className="flex w-full items-center gap-3 p-3 text-left sm:gap-4 sm:p-4"
-                  aria-expanded={open}
-                  onClick={() => setOpenId(open ? null : c.id)}
+                {chipLabel[f]}
+              </FilterChip>
+            ))}
+          </div>
+
+          <div className="overflow-hidden rounded-[10px] border bg-card shadow-sm">
+            <div className="grid cursor-default grid-cols-[40px_90px_1fr_1fr_130px_100px] items-center gap-3.5 border-b bg-[#FAFBFC] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.5px] text-muted-foreground max-lg:hidden">
+              <div>#</div>
+              <div>Band</div>
+              <div>Candidate</div>
+              <div>Why they match</div>
+              <div>Signals</div>
+              <div className="text-right">Actions</div>
+            </div>
+            {visible.map((c, i) => {
+              const meta = BAND_META[c.band];
+              const signals = signalsFor(c);
+              return (
+                <div
+                  key={c.id}
+                  onClick={() => setDrawerId(c.id)}
+                  className="grid cursor-pointer grid-cols-[40px_90px_1fr_1fr_130px_100px] items-center gap-3.5 border-b px-4 py-3.5 transition-colors last:border-b-0 hover:bg-[#FAFBFC] max-lg:grid-cols-[40px_90px_1fr_100px]"
                 >
-                  <ScoreTile
-                    score={c.score}
-                    verdict={verdict}
-                    threshold={campaign?.threshold}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium">
+                  <div className="text-center text-sm font-semibold text-muted-foreground">
+                    {i + 1}
+                  </div>
+                  <div
+                    className={`rounded px-2 py-[3px] text-center text-[11px] font-semibold ${meta.tag}`}
+                  >
+                    {meta.label.split(" ")[0]}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="mb-0.5 truncate text-sm font-semibold">
                       {c.name ?? c.original_filename}
-                    </p>
-                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                      <Badge variant={recVariant(c.recommendation)}>
-                        {c.recommendation ?? "Pending"}
-                      </Badge>
-                      {c.hard_filter_failed && (
-                        <Badge variant="destructive">Hard filter</Badge>
-                      )}
-                      {needsInfo.length > 0 && (
-                        <Badge variant="outline">
-                          Needs info ({needsInfo.length})
-                        </Badge>
-                      )}
-                      {flags.map((f) => (
-                        <Badge key={f} variant="secondary">
-                          {f.replaceAll("_", " ")}
-                        </Badge>
-                      ))}
+                    </div>
+                    <div className="truncate text-xs text-muted-foreground">
+                      {candidateMeta(c)}
                     </div>
                   </div>
-                  <div className="hidden shrink-0 items-center gap-2 sm:flex">
-                    {c.email_draft &&
-                      (c.outreach_approved ? (
-                        <Badge>Approved</Badge>
-                      ) : (
-                        <Badge variant="outline">Draft ready</Badge>
-                      ))}
-                    <span aria-hidden className="text-muted-foreground">
-                      {open ? "▾" : "▸"}
-                    </span>
+                  <div className="line-clamp-2 text-[12.5px] text-muted-foreground max-lg:hidden">
+                    {c.rationale ?? "—"}
                   </div>
-                </button>
-                {open && campaign && (
-                  <CandidateDetail campaignId={campaign.id} candidate={c} />
-                )}
-              </li>
+                  <div className="space-y-0.5 max-lg:hidden">
+                    {signals.map((s) => (
+                      <div
+                        key={s.text}
+                        className={`text-[11.5px] font-semibold ${
+                          s.tone === "positive"
+                            ? "text-verdict-pass"
+                            : "text-verdict-hold"
+                        }`}
+                      >
+                        {s.text}
+                      </div>
+                    ))}
+                  </div>
+                  <div
+                    className="flex justify-end gap-1.5"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      title={
+                        c.review_status === "approved" ? "Approved" : "Approve"
+                      }
+                      onClick={() =>
+                        review.mutate({
+                          candidateId: c.id,
+                          status:
+                            c.review_status === "approved"
+                              ? "pending"
+                              : "approved",
+                        })
+                      }
+                      className={`flex h-[30px] w-[30px] items-center justify-center rounded-md border text-sm transition-colors ${
+                        c.review_status === "approved"
+                          ? "border-verdict-pass bg-verdict-pass text-white"
+                          : "border-border bg-white text-verdict-pass hover:border-verdict-pass hover:bg-verdict-pass-soft"
+                      }`}
+                    >
+                      ✓
+                    </button>
+                    <button
+                      title={
+                        c.review_status === "rejected" ? "Rejected" : "Reject"
+                      }
+                      onClick={() =>
+                        review.mutate({
+                          candidateId: c.id,
+                          status:
+                            c.review_status === "rejected"
+                              ? "pending"
+                              : "rejected",
+                        })
+                      }
+                      className={`flex h-[30px] w-[30px] items-center justify-center rounded-md border text-sm transition-colors ${
+                        c.review_status === "rejected"
+                          ? "border-verdict-fail bg-verdict-fail text-white"
+                          : "border-border bg-white text-muted-foreground hover:border-verdict-fail hover:bg-verdict-fail-soft hover:text-verdict-fail"
+                      }`}
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+            {visible.length === 0 && (
+              <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+                No candidates match this view.
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {!showProgress && campaign && candidates.length === 0 && (
+        <div className="rounded-[10px] border bg-card p-10 text-center text-sm text-muted-foreground shadow-sm">
+          No candidates in this search.
+        </div>
+      )}
+
+      <CandidateDrawer
+        candidate={drawerCandidate}
+        onClose={() => setDrawerId(null)}
+        onReview={(status) => {
+          if (drawerCandidate) {
+            review.mutate({ candidateId: drawerCandidate.id, status });
+            setDrawerId(null);
+          }
+        }}
+        onApproveForOutreach={() => {
+          if (drawerCandidate) {
+            review.mutate(
+              { candidateId: drawerCandidate.id, status: "approved" },
+              { onSuccess: () => router.push("/dashboard/outreach") },
             );
-          })}
-        </ul>
-      </div>
+            setDrawerId(null);
+          }
+        }}
+      />
     </Shell>
   );
 }
