@@ -29,6 +29,7 @@ from sqlalchemy.orm import Session
 
 from ai_candidate_screening_outreach.admin.routes import router as admin_router
 from ai_candidate_screening_outreach.audit import log_action
+from ai_candidate_screening_outreach.bands import RECOMMENDED_BANDS, band_for
 from ai_candidate_screening_outreach.auth.deps import require_company_user
 from ai_candidate_screening_outreach.auth.routes import router as auth_router
 from ai_candidate_screening_outreach.auth.security import decode_access_token
@@ -123,11 +124,65 @@ async def my_company(
     }
 
 
+def _candidate_dict(c: Candidate, threshold: float) -> dict:
+    """ORM row -> dict with the computed fit band attached."""
+    data = {k: v for k, v in c.__dict__.items() if k != "_sa_instance_state"}
+    data["band"] = band_for(
+        c.recommendation, c.score, bool(c.hard_filter_failed), threshold
+    )
+    return data
+
+
 @app.get("/api/campaigns")
 async def list_campaigns(
     user: User = Depends(require_company_user), db: Session = Depends(get_db)
 ):
-    return _campaign_query(db, user).order_by(Campaign.id.desc()).all()
+    campaigns = _campaign_query(db, user).order_by(Campaign.id.desc()).all()
+    ids = [c.id for c in campaigns]
+    by_campaign: dict[int, list[Candidate]] = {}
+    if ids:
+        for cand in db.query(Candidate).filter(Candidate.campaign_id.in_(ids)).all():
+            by_campaign.setdefault(cand.campaign_id, []).append(cand)
+
+    rows = []
+    for campaign in campaigns:
+        threshold = campaign.threshold if campaign.threshold is not None else 65.0
+        cands = by_campaign.get(campaign.id, [])
+        bands = [
+            band_for(c.recommendation, c.score, bool(c.hard_filter_failed), threshold)
+            for c in cands
+        ]
+        recommended = [
+            c for c, b in zip(cands, bands) if b in RECOMMENDED_BANDS
+        ]
+        requirements = campaign.requirements or {}
+        rows.append(
+            {
+                "id": campaign.id,
+                "name": campaign.name,
+                "status": campaign.status,
+                "region": campaign.region,
+                "threshold": campaign.threshold,
+                "intake_mode": campaign.intake_mode,
+                "folder_name": campaign.folder_name,
+                "created_at": campaign.created_at,
+                "finished_at": campaign.finished_at,
+                "role_title": requirements.get("role_title"),
+                "urgency": requirements.get("urgency"),
+                "counts": {
+                    "total": len(cands),
+                    "processed": sum(1 for c in cands if c.score is not None),
+                    "recommended": len(recommended),
+                    "approved": sum(
+                        1 for c in recommended if c.review_status == "approved"
+                    ),
+                    "pending_review": sum(
+                        1 for c in recommended if c.review_status == "pending"
+                    ),
+                },
+            }
+        )
+    return rows
 
 
 @app.post("/api/campaigns")
@@ -377,9 +432,10 @@ async def view_campaign(
     candidates = sorted(
         candidates, key=lambda x: x.score if x.score is not None else -1, reverse=True
     )
+    threshold = campaign.threshold if campaign.threshold is not None else 65.0
     return {
         "campaign": campaign,
-        "candidates": candidates,
+        "candidates": [_candidate_dict(c, threshold) for c in candidates],
         "processed_count": processed_count,
         "total_count": total_count,
     }
