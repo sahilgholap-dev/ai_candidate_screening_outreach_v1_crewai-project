@@ -3,7 +3,8 @@ import hashlib
 import io
 import json
 import os
-from typing import List
+import re
+from typing import List, Literal
 from fastapi import WebSocket, WebSocketDisconnect, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -34,7 +35,13 @@ from ai_candidate_screening_outreach.auth.deps import require_company_user
 from ai_candidate_screening_outreach.auth.routes import router as auth_router
 from ai_candidate_screening_outreach.auth.security import decode_access_token
 from ai_candidate_screening_outreach.db.database import engine, Base, get_db, SessionLocal
-from ai_candidate_screening_outreach.db.models import Campaign, Candidate, Company, User
+from ai_candidate_screening_outreach.db.models import (
+    Campaign,
+    Candidate,
+    Company,
+    User,
+    utcnow,
+)
 from ai_candidate_screening_outreach.schemas.requirements import RequirementsProfileV1
 from ai_candidate_screening_outreach.pipeline.queue_worker import (
     enqueue_campaign,
@@ -546,6 +553,7 @@ async def rerun_campaign(
 class CandidateUpdate(BaseModel):
     email_draft: str | None = None
     sms_draft: str | None = None
+    review_status: Literal["pending", "approved", "rejected", "later"] | None = None
 
 
 @app.patch("/api/campaigns/{campaign_id}/candidates/{candidate_id}")
@@ -569,9 +577,146 @@ async def update_candidate(
     changes = body.model_dump(exclude_unset=True)
     for key, value in changes.items():
         setattr(candidate, key, value)
+    if "review_status" in changes:
+        log_action(
+            db,
+            "candidate.review",
+            user=user,
+            company_id=campaign.company_id,
+            detail={
+                "campaign_id": campaign.id,
+                "candidate_id": candidate.id,
+                "candidate": candidate.name,
+                "review_status": changes["review_status"],
+            },
+        )
     db.commit()
     db.refresh(candidate)
     return candidate
+
+
+PLACEHOLDER_RE = re.compile(r"\[[^\]]+\]")
+
+
+class SendBody(BaseModel):
+    email_body: str
+    sms_body: str | None = None
+
+
+@app.post("/api/campaigns/{campaign_id}/candidates/{candidate_id}/send")
+async def send_outreach(
+    campaign_id: int,
+    candidate_id: int,
+    body: SendBody,
+    user: User = Depends(require_company_user),
+    db: Session = Depends(get_db),
+):
+    """Phase-1 'send': records reviewer + final content; no email leaves the system."""
+    campaign = _campaign_query(db, user).filter(Campaign.id == campaign_id).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    candidate = (
+        db.query(Candidate)
+        .filter(Candidate.id == candidate_id, Candidate.campaign_id == campaign.id)
+        .first()
+    )
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    if candidate.review_status != "approved":
+        raise HTTPException(status_code=409, detail="Approve the candidate before sending")
+    if candidate.sent_at is not None:
+        raise HTTPException(status_code=409, detail="Outreach already sent for this candidate")
+    if PLACEHOLDER_RE.search(body.email_body or ""):
+        raise HTTPException(
+            status_code=422,
+            detail="The draft still contains [placeholder] text — fill it in before sending",
+        )
+    candidate.sent_at = utcnow()
+    candidate.sent_by = user.email
+    candidate.sent_email = body.email_body
+    candidate.sent_sms = body.sms_body
+    log_action(
+        db,
+        "outreach.sent",
+        user=user,
+        company_id=campaign.company_id,
+        detail={
+            "campaign_id": campaign.id,
+            "candidate_id": candidate.id,
+            "candidate": candidate.name,
+            "email_chars": len(body.email_body),
+            "sms": bool(body.sms_body),
+        },
+    )
+    db.commit()
+    return {"sent_at": candidate.sent_at.isoformat()}
+
+
+@app.get("/api/outreach/queue")
+async def outreach_queue(
+    user: User = Depends(require_company_user), db: Session = Depends(get_db)
+):
+    """Approved-but-unsent candidates across the company's searches."""
+    from ai_candidate_screening_outreach.pipeline.runner import EMAIL_RE
+
+    if user.role == "platform_admin":
+        raise HTTPException(status_code=400, detail="Admins are not linked to a company")
+    rows = (
+        db.query(Candidate, Campaign)
+        .join(Campaign, Candidate.campaign_id == Campaign.id)
+        .filter(
+            Campaign.company_id == user.company_id,
+            Candidate.review_status == "approved",
+            Candidate.sent_at.is_(None),
+        )
+        .order_by(Candidate.id.asc())
+        .all()
+    )
+    out = []
+    for cand, camp in rows:
+        m = EMAIL_RE.search(cand.parsed_text or "")
+        threshold = camp.threshold if camp.threshold is not None else 65.0
+        out.append(
+            {
+                "candidate_id": cand.id,
+                "campaign_id": camp.id,
+                "campaign_name": camp.name,
+                "role_title": (camp.requirements or {}).get("role_title"),
+                "band": band_for(
+                    cand.recommendation, cand.score, bool(cand.hard_filter_failed), threshold
+                ),
+                "name": cand.name or cand.original_filename,
+                "email": m.group(0) if m else None,
+                "email_draft": cand.email_draft,
+                "sms_draft": cand.sms_draft,
+            }
+        )
+    return out
+
+
+@app.get("/api/outreach/sent")
+async def outreach_sent(
+    user: User = Depends(require_company_user), db: Session = Depends(get_db)
+):
+    if user.role == "platform_admin":
+        raise HTTPException(status_code=400, detail="Admins are not linked to a company")
+    rows = (
+        db.query(Candidate, Campaign)
+        .join(Campaign, Candidate.campaign_id == Campaign.id)
+        .filter(Campaign.company_id == user.company_id, Candidate.sent_at.isnot(None))
+        .order_by(Candidate.sent_at.desc())
+        .all()
+    )
+    return [
+        {
+            "candidate_id": c.id,
+            "name": c.name or c.original_filename,
+            "campaign_name": camp.name,
+            "sent_at": c.sent_at,
+            "sent_by": c.sent_by,
+        }
+        for c, camp in rows
+    ]
 
 
 def _json_list(value: str | None) -> str:
