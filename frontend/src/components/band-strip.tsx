@@ -14,7 +14,7 @@ export function BandStrip({
   onSelect: (band: Band | null) => void;
 }) {
   return (
-    <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-3">
       {BAND_ORDER.map((band) => {
         const meta = BAND_META[band];
         const isActive = active === band;

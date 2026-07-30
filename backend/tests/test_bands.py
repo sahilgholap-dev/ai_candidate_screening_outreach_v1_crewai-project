@@ -3,20 +3,13 @@
 from ai_candidate_screening_outreach.bands import band_for
 
 
-def test_shortlist_far_above_threshold_is_ideal():
+def test_any_shortlist_is_ideal():
     assert band_for("Shortlist", 85, False, 65) == "ideal"
+    assert band_for("Shortlist", 66, False, 65) == "ideal"
 
 
-def test_shortlist_at_boundary_is_ideal():
-    assert band_for("Shortlist", 80, False, 65) == "ideal"
-
-
-def test_shortlist_below_boundary_is_good():
-    assert band_for("Shortlist", 79, False, 65) == "good"
-
-
-def test_maybe_is_moderate():
-    assert band_for("Maybe", 60, False, 65) == "moderate"
+def test_maybe_is_good():
+    assert band_for("Maybe", 60, False, 65) == "good"
 
 
 def test_rejects_hard_filter_duplicate_needs_review_are_not_fit():

@@ -169,11 +169,11 @@ Same dark sidebar + topbar + tokens; page content layouts unchanged.
 
 ## Band mapping (backend-computed)
 
+Revised 2026-07-30 (Sahil): three bands, direct mapping — no Moderate band.
+- Ideal Match: recommendation == Shortlist.
+- Good Fit: recommendation == Maybe.
 - Not a Fit: recommendation in {Reject, Reject (Hard Filter), Duplicate,
   Needs Review} or hard_filter_failed.
-- Moderate: recommendation == Maybe.
-- Ideal: recommendation == Shortlist AND score >= threshold + 15.
-- Good: remaining Shortlist.
 Helper `band_for(candidate, threshold)` in backend; serialized as
 `candidate.band`; also drives "recommended" counts (Ideal+Good).
 

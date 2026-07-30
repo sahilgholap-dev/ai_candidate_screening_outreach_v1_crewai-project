@@ -126,7 +126,7 @@ export default function SearchDetailPage({
   const running = campaign ? RUNNING_STATUSES.has(campaign.status) : false;
 
   const bandCounts = useMemo(() => {
-    const counts = { ideal: 0, good: 0, moderate: 0, not_fit: 0, unscored: 0 };
+    const counts = { ideal: 0, good: 0, not_fit: 0, unscored: 0 };
     for (const c of candidates) counts[c.band] += 1;
     return counts;
   }, [candidates]);
@@ -273,9 +273,8 @@ export default function SearchDetailPage({
     const order: Record<string, number> = {
       ideal: 0,
       good: 1,
-      moderate: 2,
-      not_fit: 3,
-      unscored: 4,
+      not_fit: 2,
+      unscored: 3,
     };
     return [...rows].sort(
       (a, b) => order[a.band] - order[b.band] || (b.score ?? -1) - (a.score ?? -1),

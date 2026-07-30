@@ -1,9 +1,9 @@
 // Fit bands — the client-facing language for screening outcomes.
 // Mirrors backend/src/ai_candidate_screening_outreach/bands.py.
 
-export type Band = "ideal" | "good" | "moderate" | "not_fit" | "unscored";
+export type Band = "ideal" | "good" | "not_fit" | "unscored";
 
-export const BAND_ORDER: Band[] = ["ideal", "good", "moderate", "not_fit"];
+export const BAND_ORDER: Band[] = ["ideal", "good", "not_fit"];
 
 export const BAND_META: Record<
   Band,
@@ -19,12 +19,6 @@ export const BAND_META: Record<
     label: "Good Fit",
     tag: "bg-band-blue-soft text-blue-900",
     bar: "bg-band-blue",
-    desc: "Meets the bar with minor gaps",
-  },
-  moderate: {
-    label: "Moderate Fit",
-    tag: "bg-verdict-hold-soft text-amber-900",
-    bar: "bg-verdict-hold",
     desc: "Just below the bar — worth reviewing",
   },
   not_fit: {
