@@ -343,6 +343,11 @@ async def add_resumes(
     campaign = _campaign_query(db, user).filter(Campaign.id == campaign_id).first()
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found")
+    if campaign.status == "Cancelled":
+        raise HTTPException(
+            status_code=409,
+            detail="This search was cancelled — start a new one to screen more resumes",
+        )
 
     existing = db.query(Candidate).filter(Candidate.campaign_id == campaign_id).all()
     existing_hashes = {c.content_hash for c in existing if c.content_hash}
@@ -420,6 +425,35 @@ async def delete_campaigns(
             db.delete(campaign)  # candidates removed via cascade
         db.commit()
     return {"success": True}
+
+
+@app.post("/api/campaigns/{campaign_id}/cancel")
+async def cancel_campaign(
+    campaign_id: int,
+    user: User = Depends(require_company_user),
+    db: Session = Depends(get_db),
+):
+    """Stop a search; partial results are kept. The runner notices the status
+    flip between candidates and stops on its own."""
+    campaign = _campaign_query(db, user).filter(Campaign.id == campaign_id).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    if campaign.status not in {"Watching", "Queued", "Processing"}:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Only running searches can be cancelled (status is {campaign.status})",
+        )
+    campaign.status = "Cancelled"
+    campaign.finished_at = utcnow()
+    log_action(
+        db,
+        "campaign.cancelled",
+        user=user,
+        company_id=campaign.company_id,
+        detail={"campaign_id": campaign.id, "name": campaign.name},
+    )
+    db.commit()
+    return {"success": True, "status": "Cancelled"}
 
 
 @app.get("/api/campaigns/{campaign_id}")

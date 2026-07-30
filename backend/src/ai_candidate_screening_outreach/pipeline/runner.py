@@ -287,7 +287,18 @@ def run_campaign(campaign_id: int) -> None:
 
         failed_chunks = 0
         total_chunks = 0
+        cancelled = False
         for i in range(0, len(to_process), BATCH_SIZE):
+            current_status = (
+                db.query(Campaign.status).filter(Campaign.id == campaign_id).scalar()
+            )
+            if current_status is None or current_status == "Cancelled":
+                print(
+                    f"[pipeline] campaign {campaign_id} cancelled/deleted — stopping",
+                    flush=True,
+                )
+                cancelled = True
+                break
             chunk = to_process[i : i + BATCH_SIZE]
             chunk_no = i // BATCH_SIZE + 1
             total_chunks += 1
@@ -408,8 +419,16 @@ def run_campaign(campaign_id: int) -> None:
                 time.sleep(CHUNK_SLEEP_SECONDS)
 
         # ---- 5. Finalize ----
+        final_status = (
+            db.query(Campaign.status).filter(Campaign.id == campaign_id).scalar()
+        )
+        if final_status is None:
+            return  # deleted mid-run: nothing to write results to
+        cancelled = cancelled or final_status == "Cancelled"
         if failed_chunks:
             final_content += f"\n\n> Note: {failed_chunks} of {total_chunks} batches failed processing.\n"
+        if cancelled and total_chunks:
+            final_content += "\n\n> Search cancelled — results above are partial.\n"
         if campaign.final_report and to_process:
             # Incremental run: keep the original report, append the new batch.
             campaign.final_report += (
@@ -430,7 +449,9 @@ def run_campaign(campaign_id: int) -> None:
             )
             .count()
         )
-        if total_chunks > 0 and failed_chunks == total_chunks:
+        if cancelled:
+            campaign.status = "Cancelled"  # preserve the user's cancel
+        elif total_chunks > 0 and failed_chunks == total_chunks:
             campaign.status = "Error"
         elif arrived_mid_run:
             campaign.status = "Queued"  # back of the line for the newcomers
