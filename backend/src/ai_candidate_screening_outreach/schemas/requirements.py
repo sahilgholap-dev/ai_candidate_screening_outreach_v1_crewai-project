@@ -150,6 +150,14 @@ class RequirementsProfileV1(BaseModel):
     dealbreakers: Optional[str] = Field(default=None, max_length=2000)
     max_shortlist: Optional[int] = Field(default=None, ge=1, le=500)
 
+    # ---- 10. Role context & culture (client form v2) ----
+    role_title: Optional[str] = Field(default=None, max_length=200)
+    urgency: Optional[Literal["standard", "high", "critical"]] = None  # view-only pacing
+    team_context: Optional[str] = Field(default=None, max_length=1000)  # outreach color
+    culture_text: Optional[str] = Field(default=None, max_length=2000)
+    positive_signals: list[str] = []
+    concern_signals: list[str] = []
+
     @model_validator(mode="after")
     def _validate(self):
         if self.weight_preset == "custom" and self.custom_weights is None:

@@ -3,6 +3,10 @@ draft_candidate_outreach_messages:
     \ below.\n\nCompany context for outreach (use it — never invent placeholders):\n\
     - Company: {company_name}\n- About the company: {company_pitch}\n- Sign every email\
     \ exactly with this signature block: {recruiter_signature}\n- Tone: {tone_notes}\n\
+    - The team they would join: {team_context}\n- What makes people thrive here: {culture_text}\n\
+    - If real team or culture details are provided above, weave at most one concrete\
+    \ sentence about them into each email; if the placeholders say none were provided,\
+    \ skip the topic entirely.\n\
     \nRole summary:\n{role_summary}\n\nShortlisted candidate(s):\n{shortlisted_block}\n\
     \nFor EACH candidate above draft:\n- **Email**: A short, warm, personalized email\
     \ (150-200 words) with a specific subject line. Reference their specific background\

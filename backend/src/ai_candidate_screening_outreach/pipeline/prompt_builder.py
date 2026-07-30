@@ -88,6 +88,7 @@ def build_recruiter_requirements_block(
             lines.append(f"- {label}: {value}")
 
     add("Region", REGION_NAMES.get(region, region))
+    add("Role title", profile.role_title)
     add("Seniority", profile.seniority)
     add("Openings", profile.openings)
     add("Target join date", profile.target_join_date)
@@ -443,6 +444,30 @@ def build_extra_rules(profile: RequirementsProfileV1 | None) -> str:
             rules.append(
                 f"- Shortlist AT MOST {profile.max_shortlist} candidates. If more clear the threshold, keep the top {profile.max_shortlist} by score and mark the rest 'Maybe'."
             )
+        if profile.culture_text or profile.positive_signals or profile.concern_signals:
+            block = [
+                "**Culture & qualitative signals (evidence-grounded, never protected attributes):**"
+            ]
+            if profile.culture_text:
+                block.append(
+                    f"- What makes someone thrive at this company: {profile.culture_text}"
+                )
+            if profile.positive_signals:
+                block.append(
+                    "- Signals to look for: "
+                    + "; ".join(profile.positive_signals)
+                    + ". When the resume clearly evidences one, add 'culture_match' to flags and name the evidence in key_strengths."
+                )
+            if profile.concern_signals:
+                block.append(
+                    "- Signals that would concern the client: "
+                    + "; ".join(profile.concern_signals)
+                    + ". When clearly evidenced, add 'culture_concern' to flags and name it in key_gaps. NEVER reject on these alone."
+                )
+            block.append(
+                "- These signals adjust emphasis only; scores still come from the rubric buckets."
+            )
+            rules.append("\n".join(block))
     if not rules:
         return "(no additional flag rules)"
     return "\n".join(rules)
@@ -452,6 +477,7 @@ def build_extra_rules(profile: RequirementsProfileV1 | None) -> str:
 
 def build_outreach_context(company: Company | None, campaign: Campaign) -> dict[str, str]:
     signature = (company.recruiter_signature if company else None) or "The Recruitment Team"
+    profile = load_profile(campaign)
     return {
         "company_name": (company.name if company else None) or "our company",
         "company_pitch": (company.pitch if company else None)
@@ -459,4 +485,8 @@ def build_outreach_context(company: Company | None, campaign: Campaign) -> dict[
         "recruiter_signature": signature,
         "tone_notes": (company.tone_notes if company else None)
         or "Professional yet warm.",
+        "team_context": (profile.team_context if profile else None)
+        or "(no team details provided — do not invent any)",
+        "culture_text": (profile.culture_text if profile else None)
+        or "(no culture notes provided)",
     }
