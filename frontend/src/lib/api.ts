@@ -64,3 +64,45 @@ export const REGION_LABELS: Record<string, string> = {
   UK: "United Kingdom",
   IN: "India",
 };
+
+// Row shape returned by GET /api/campaigns (a "search" in UI language).
+export type SearchRow = {
+  id: number;
+  name: string;
+  status: string;
+  region: string | null;
+  threshold: number | null;
+  intake_mode: "upload" | "folder";
+  folder_name: string | null;
+  created_at: string | null;
+  finished_at: string | null;
+  role_title: string | null;
+  urgency: "standard" | "high" | "critical" | null;
+  counts: {
+    total: number;
+    processed: number;
+    recommended: number;
+    approved: number;
+    pending_review: number;
+  };
+};
+
+export type OutreachQueueItem = {
+  candidate_id: number;
+  campaign_id: number;
+  campaign_name: string;
+  role_title: string | null;
+  band: string;
+  name: string;
+  email: string | null;
+  email_draft: string | null;
+  sms_draft: string | null;
+};
+
+export type SentOutreachRow = {
+  candidate_id: number;
+  name: string;
+  campaign_name: string;
+  sent_at: string;
+  sent_by: string | null;
+};

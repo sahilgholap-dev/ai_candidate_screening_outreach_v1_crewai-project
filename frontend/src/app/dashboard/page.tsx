@@ -2,101 +2,177 @@
 
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
+import { FilterChip } from "@/components/filter-chip";
 import { Shell } from "@/components/shell";
-import { Badge } from "@/components/ui/badge";
+import { StatusDot } from "@/components/status-dot";
 import { buttonVariants } from "@/components/ui/button";
-import { api } from "@/lib/api";
+import { api, SearchRow } from "@/lib/api";
+import { libraryStatus } from "@/lib/bands";
+import { relTime } from "@/lib/relative-time";
+import { MyCompany } from "@/lib/requirements";
 
-type Campaign = {
-  id: number;
-  name: string;
-  status: string;
-  threshold: number;
-  region: string | null;
-  created_at: string | null;
-};
+const FILTERS = [
+  "All searches",
+  "Active",
+  "Awaiting review",
+  "Completed",
+  "Cancelled",
+] as const;
+type Filter = (typeof FILTERS)[number];
 
-const STATUS_STYLE: Record<string, string> = {
-  Completed: "bg-verdict-pass-soft text-verdict-pass border-verdict-pass/25",
-  Error: "bg-verdict-fail-soft text-verdict-fail border-verdict-fail/25",
-  Processing: "bg-verdict-hold-soft text-verdict-hold border-verdict-hold/25",
-  Queued: "bg-muted text-muted-foreground border-border",
-  Watching: "bg-sky-50 text-sky-700 border-sky-200",
-};
+function matchesFilter(row: SearchRow, filter: Filter): boolean {
+  const { kind } = libraryStatus(row);
+  switch (filter) {
+    case "Active":
+      return kind === "running";
+    case "Awaiting review":
+      return kind === "review";
+    case "Completed":
+      return kind === "complete" || kind === "review";
+    case "Cancelled":
+      return kind === "cancelled";
+    default:
+      return true;
+  }
+}
 
-export default function DashboardHome() {
-  const { data: campaigns, isLoading } = useQuery<Campaign[]>({
+export default function SearchLibrary() {
+  const router = useRouter();
+  const [filter, setFilter] = useState<Filter>("All searches");
+
+  const { data: rows, isLoading } = useQuery<SearchRow[]>({
     queryKey: ["campaigns"],
     queryFn: () => api("/campaigns"),
+    refetchInterval: 15_000,
   });
+  const { data: company } = useQuery<MyCompany>({
+    queryKey: ["my-company"],
+    queryFn: () => api("/my/company"),
+  });
+
+  const visible = (rows ?? []).filter((r) => matchesFilter(r, filter));
 
   return (
     <Shell
-      title="Campaigns"
+      title="Search library"
+      subtitle={
+        company ? `All talent searches for ${company.name}` : "All talent searches"
+      }
       actions={
         <Link href="/dashboard/campaigns/new" className={buttonVariants()}>
-          New campaign
+          ＋ Start new search
         </Link>
       }
     >
-      {isLoading && <p className="text-muted-foreground">Loading…</p>}
+      <div className="mb-[18px] flex flex-wrap items-center gap-2">
+        {FILTERS.map((f) => (
+          <FilterChip key={f} active={filter === f} onClick={() => setFilter(f)}>
+            {f}
+          </FilterChip>
+        ))}
+      </div>
 
-      {campaigns && campaigns.length === 0 && (
-        <div className="rounded-lg border border-dashed bg-card p-10 text-center">
-          <h2 className="font-display text-lg font-semibold">
-            No campaigns yet
-          </h2>
+      {isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
+
+      {rows && rows.length === 0 && (
+        <div className="rounded-[10px] border bg-card p-10 text-center shadow-sm">
+          <h2 className="text-[15px] font-semibold">No searches yet</h2>
           <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
-            Upload a job description and resumes to run your first screening.
+            Start your first search — upload a job description and we&apos;ll
+            find the matches.
           </p>
           <Link
             href="/dashboard/campaigns/new"
             className={`${buttonVariants()} mt-5`}
           >
-            Create your first campaign
+            ＋ Start new search
           </Link>
         </div>
       )}
 
-      {campaigns && campaigns.length > 0 && (
-        <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {campaigns.map((c) => (
-            <li key={c.id}>
-              <Link
-                href={`/dashboard/campaigns/${c.id}`}
-                className="flex h-full flex-col justify-between gap-4 rounded-lg border bg-card p-4 transition-colors hover:border-primary/40"
-              >
-                <div>
-                  <p className="font-display font-semibold leading-snug">
-                    {c.name}
-                  </p>
-                  {c.created_at && (
-                    <p className="data-value mt-1 text-xs text-muted-foreground">
-                      {new Date(c.created_at).toLocaleDateString(undefined, {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })}
-                    </p>
-                  )}
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <span
-                    className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium ${
-                      STATUS_STYLE[c.status] ?? STATUS_STYLE.Queued
-                    }`}
+      {rows && rows.length > 0 && (
+        <div className="overflow-x-auto rounded-[10px] border bg-card shadow-sm">
+          <table className="w-full border-collapse text-left">
+            <thead>
+              <tr className="border-b bg-[#FAFBFC]">
+                {[
+                  "Search name",
+                  "Role",
+                  "Status",
+                  "Candidates reviewed",
+                  "Recommended",
+                  "Last activity",
+                ].map((h) => (
+                  <th
+                    key={h}
+                    className="px-4 py-3 text-xs font-semibold uppercase tracking-[0.5px] text-muted-foreground"
                   >
-                    {c.status}
-                  </span>
-                  <span className="data-value text-xs text-muted-foreground">
-                    {c.region ?? "—"} · cut-off {c.threshold}
-                  </span>
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {visible.map((r) => {
+                const status = libraryStatus(r);
+                return (
+                  <tr
+                    key={r.id}
+                    onClick={() => router.push(`/dashboard/campaigns/${r.id}`)}
+                    className="cursor-pointer border-b last:border-b-0 hover:bg-[#FAFBFC]"
+                  >
+                    <td className="px-4 py-3.5 text-[13.5px] font-semibold">
+                      {r.name}
+                    </td>
+                    <td className="px-4 py-3.5 text-[13.5px]">
+                      {r.role_title ?? "—"}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3.5 text-[13.5px]">
+                      <StatusDot kind={status.kind} />
+                      {status.label}
+                    </td>
+                    <td className="px-4 py-3.5 text-[13.5px]">
+                      {r.counts.total > 0
+                        ? `${r.counts.processed} of ${r.counts.total}`
+                        : "—"}
+                    </td>
+                    <td className="px-4 py-3.5 text-[13.5px]">
+                      {r.counts.processed > 0 ? (
+                        <>
+                          {r.counts.recommended}
+                          {r.counts.approved > 0 && (
+                            <span className="text-muted-foreground">
+                              {" "}
+                              · {r.counts.approved} approved
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td className="px-4 py-3.5 text-[13.5px] text-muted-foreground">
+                      {relTime(r.finished_at ?? r.created_at)}
+                    </td>
+                  </tr>
+                );
+              })}
+              {visible.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={6}
+                    className="px-4 py-8 text-center text-sm text-muted-foreground"
+                  >
+                    No searches match this filter.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       )}
     </Shell>
   );
