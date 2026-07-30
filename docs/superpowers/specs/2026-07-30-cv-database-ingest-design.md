@@ -41,7 +41,23 @@ DB credentials; it polls their table/bucket for new rows and POSTs files to
 our webhook. Their credentials never leave their network; we still get push
 semantics.
 
-## Decision 2 — The 10,000-unsorted-CVs problem
+## Decision 2 — Buckets: tagged CVs are a deterministic subscription
+
+Clients whose DB already categorizes CVs (a job-title column, an application
+bucket) pass that category to the webhook as `bucket` (e.g. "ai-analyst").
+
+- **Search creation:** the pool intake option offers a picker — "All resumes
+  (smart-ranked)" or a specific bucket with its live count ("ai-analyst ·
+  100 resumes"). Picking a bucket attaches its CVs (deduped, capped) and
+  screens them as a normal batch.
+- **Live tracking (webhook-triggered, no polling):** the search stays bound
+  to the bucket. A new CV arriving with that bucket tag is attached to every
+  active search bound to it and incrementally screened immediately — the
+  server-side equivalent of folder watching, working with the browser closed.
+- An explicit bucket BYPASSES the relevance ranker: the client's own tag
+  always beats our inference. Untagged arrivals use Decision 3's ranking.
+
+## Decision 3 — The 10,000-unsorted-CVs problem
 
 The edge case: a client's DB holds ~10k CVs with no role/application tag.
 We must never LLM-screen 10k resumes per search (cost: ~10k LLM calls per
@@ -95,9 +111,12 @@ Client DB/ATS ──(their trigger/cron/connector script)──▶
   once at issue), label, created_at, revoked_at, last_used_at.
 - `pool_resumes`: id, company_id, original_filename, content_hash
   (unique per company), parsed_text, external_ref (client's ID, optional),
-  role_hint (optional), received_at, tsv (tsvector, GIN index; Postgres only).
-- `campaigns.intake_mode` gains value `"pool"`; `campaigns.pool_min_score`
-  (float, nullable) and `campaigns.pool_cap` (int, default 200).
+  bucket (optional tag, indexed), received_at, tsv (tsvector, GIN index;
+  Postgres only).
+- `campaigns.intake_mode` gains value `"pool"`; `campaigns.pool_bucket`
+  (nullable — set = bucket subscription, null = smart-ranked),
+  `campaigns.pool_min_score` (float, nullable) and `campaigns.pool_cap`
+  (int, default 200).
 - `candidates.pool_resume_id` (nullable FK) — provenance of pool-sourced
   candidates.
 
@@ -106,11 +125,15 @@ Client DB/ATS ──(their trigger/cron/connector script)──▶
 - `POST /api/ingest/resumes` — auth: `Authorization: Bearer <api key>`.
   Multipart files (same validation: pdf/docx/txt, 10 MB) or JSON
   `{filename, text}` for clients whose DB already stores extracted text.
-  Optional form/JSON fields: `external_ref`, `role_hint`, `search_id`.
-  Response: `{added: n, duplicates: n, attached_to_search: id|null}`.
+  Optional form/JSON fields: `external_ref`, `bucket`, `search_id`.
+  Ingest side-effects: bucket-bound active searches get matching CVs
+  attached + incrementally screened immediately; ranked pool searches get
+  arrivals that clear their relevance bar.
+  Response: `{added: n, duplicates: n, attached_to_searches: [ids]}`.
   Rate limit: 60 req/min per key; ≤20 files per request.
 - `GET /api/pool/summary` (session auth) — {total, last_received_at,
-  by_month counts} for the "Where we'll search" card.
+  buckets: [{name, count}]} for the "Where we'll search" card and the
+  bucket picker.
 - `POST /api/campaigns/{id}/pool-sync` (internal + manual button) — run
   Stage-0 against the pool, attach new top matches, enqueue incremental run.
 - Admin: `POST /api/admin/companies/{id}/api-keys` (issue),
@@ -119,10 +142,12 @@ Client DB/ATS ──(their trigger/cron/connector script)──▶
 ## UI changes
 
 - **Start new search → "Where we'll search"**: third intake option
-  **"Company CV pool"** (enabled when the pool is non-empty): shows pool
-  size + last-received time, a match cap field (default 200), and copy:
-  "We rank your whole pool against this role and screen only the strongest
-  matches. New CVs arriving later are screened automatically."
+  **"Company CV pool"** (enabled when the pool is non-empty): bucket picker
+  ("All resumes — smart-ranked" | each bucket with live count), pool size +
+  last-received time, a match cap field (default 200), and copy: "We rank
+  your whole pool against this role and screen only the strongest matches"
+  (ranked) / "Every resume in this bucket is screened" (bucket). Both:
+  "New CVs arriving later are screened automatically."
 - **Search detail**: pool-backed searches show "🗄 Watching your CV pool —
   ranked X of Y pool resumes, screening top N" instead of the folder line.
 - **Workspace settings**: pool section — API key management is admin-side
@@ -163,15 +188,20 @@ Client DB/ATS ──(their trigger/cron/connector script)──▶
 5. Stage-0 ranker: `rank_pool(company, jd_text, profile) -> [(pool_id,
    score)]` — Postgres FTS implementation + SQLite fallback + unit tests
    with a seeded 1k-row pool.
-6. Campaign creation with intake_mode="pool" (no files): rank, attach top
-   cap, enqueue; "Watching pool" status when pool is empty of matches.
-7. UI: third intake option + pool summary card + search-detail pool line.
+6. Campaign creation with intake_mode="pool" (no files): bucket selected →
+   attach the bucket's CVs (deduped, capped); no bucket → rank + attach top
+   cap. Enqueue; "Watching pool" status when nothing matches yet.
+7. UI: third intake option with bucket picker + pool summary card +
+   search-detail pool line.
 
-**Phase 3 — Continuous pool watching**
-8. On ingest: score new CV against active pool-backed searches (cheap,
-   single-row ranking), attach + enqueue incremental where it clears the
-   bar (campaign pool_min_score, default = score of current #cap candidate).
-9. Search library shows "Watching pool" status; audit entries per auto-attach.
+**Phase 3 — Continuous pool watching (webhook-triggered)**
+8. On ingest: bucket-tagged CV → attach to every active search bound to
+   that bucket + enqueue incremental. Untagged (or ranked searches):
+   single-row relevance score per active ranked search, attach where it
+   clears the bar (campaign pool_min_score, default = score of current
+   #cap candidate).
+9. Search library shows "Watching pool" status; audit entries per
+   auto-attach.
 
 **Phase 4 — Client-side reference connector + docs**
 10. `connectors/nexus_db_connector.py`: single-file script (SQL table or
