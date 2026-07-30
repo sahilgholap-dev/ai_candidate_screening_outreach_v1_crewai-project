@@ -12,7 +12,12 @@ import { Shell } from "@/components/shell";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
-import { Band, BAND_META, RECOMMENDED_BANDS } from "@/lib/bands";
+import {
+  BAND_META,
+  DisplayBand,
+  displayBand,
+  RECOMMENDED_BANDS,
+} from "@/lib/bands";
 import {
   CandidateRow,
   candidateMeta,
@@ -101,7 +106,7 @@ export default function SearchDetailPage({
   const queryClient = useQueryClient();
 
   const [drawerId, setDrawerId] = useState<number | null>(null);
-  const [bandFilter, setBandFilter] = useState<Band | null>(null);
+  const [bandFilter, setBandFilter] = useState<DisplayBand | null>(null);
   const [chipFilter, setChipFilter] = useState<ResultFilter>("recommended");
   const [search, setSearch] = useState("");
 
@@ -126,8 +131,8 @@ export default function SearchDetailPage({
   const running = campaign ? RUNNING_STATUSES.has(campaign.status) : false;
 
   const bandCounts = useMemo(() => {
-    const counts = { ideal: 0, good: 0, not_fit: 0, unscored: 0 };
-    for (const c of candidates) counts[c.band] += 1;
+    const counts = { ideal: 0, good: 0, not_fit: 0, rejected: 0, unscored: 0 };
+    for (const c of candidates) counts[displayBand(c)] += 1;
     return counts;
   }, [candidates]);
   const recommended = bandCounts.ideal + bandCounts.good;
@@ -233,10 +238,13 @@ export default function SearchDetailPage({
 
   // ---------- Results derivations ----------
   const visible = useMemo(() => {
-    let rows = candidates.filter((c) => c.band !== "unscored");
+    let rows = candidates.filter((c) => displayBand(c) !== "unscored");
     if (bandFilter) {
-      rows = rows.filter((c) => c.band === bandFilter);
+      rows = rows.filter((c) => displayBand(c) === bandFilter);
     } else {
+      // Chip views never show manually-rejected candidates — they live in
+      // their own band card.
+      rows = rows.filter((c) => displayBand(c) !== "rejected");
       switch (chipFilter) {
         case "recommended":
           rows = rows.filter((c) => RECOMMENDED_BANDS.includes(c.band));
@@ -274,10 +282,13 @@ export default function SearchDetailPage({
       ideal: 0,
       good: 1,
       not_fit: 2,
-      unscored: 3,
+      rejected: 3,
+      unscored: 4,
     };
     return [...rows].sort(
-      (a, b) => order[a.band] - order[b.band] || (b.score ?? -1) - (a.score ?? -1),
+      (a, b) =>
+        order[displayBand(a)] - order[displayBand(b)] ||
+        (b.score ?? -1) - (a.score ?? -1),
     );
   }, [candidates, bandFilter, chipFilter, search]);
 
@@ -464,7 +475,7 @@ export default function SearchDetailPage({
               <div className="text-right">Actions</div>
             </div>
             {visible.map((c, i) => {
-              const meta = BAND_META[c.band];
+              const meta = BAND_META[displayBand(c)];
               const signals = signalsFor(c);
               return (
                 <div

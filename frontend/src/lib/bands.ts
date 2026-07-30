@@ -3,10 +3,23 @@
 
 export type Band = "ideal" | "good" | "not_fit" | "unscored";
 
-export const BAND_ORDER: Band[] = ["ideal", "good", "not_fit"];
+// What the results view actually groups by: the screening band, except that a
+// manual recruiter rejection overrides it and shows as its own "Rejected" group.
+export type DisplayBand = Band | "rejected";
+
+export function displayBand(c: {
+  band: Band;
+  review_status: string;
+}): DisplayBand {
+  return c.review_status === "rejected" && c.band !== "unscored"
+    ? "rejected"
+    : c.band;
+}
+
+export const BAND_ORDER: DisplayBand[] = ["ideal", "good", "not_fit", "rejected"];
 
 export const BAND_META: Record<
-  Band,
+  DisplayBand,
   { label: string; tag: string; bar: string; desc: string }
 > = {
   ideal: {
@@ -26,6 +39,12 @@ export const BAND_META: Record<
     tag: "bg-gray-soft text-muted-foreground",
     bar: "bg-text-light",
     desc: "Didn't meet the requirements",
+  },
+  rejected: {
+    label: "Rejected",
+    tag: "bg-verdict-fail-soft text-verdict-fail",
+    bar: "bg-verdict-fail",
+    desc: "Manually rejected by your team",
   },
   unscored: {
     label: "Pending",

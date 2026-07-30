@@ -6,7 +6,7 @@
 import { useEffect } from "react";
 
 import { Button } from "@/components/ui/button";
-import { BAND_META } from "@/lib/bands";
+import { BAND_META, displayBand } from "@/lib/bands";
 import {
   BUCKET_LABELS,
   CandidateRow,
@@ -71,7 +71,7 @@ export function CandidateDrawer({
   }, [onClose]);
 
   const open = candidate !== null;
-  const meta = candidate ? BAND_META[candidate.band] : null;
+  const meta = candidate ? BAND_META[displayBand(candidate)] : null;
   const buckets = candidate?.judgments?.breakdown?.buckets ?? null;
   const strengths = candidate ? parseList(candidate.key_strengths) : [];
   const gaps = candidate ? parseList(candidate.key_gaps) : [];

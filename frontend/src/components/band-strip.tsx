@@ -1,6 +1,6 @@
 "use client";
 
-import { Band, BAND_META, BAND_ORDER } from "@/lib/bands";
+import { BAND_META, BAND_ORDER, DisplayBand } from "@/lib/bands";
 
 export function BandStrip({
   counts,
@@ -8,13 +8,13 @@ export function BandStrip({
   active,
   onSelect,
 }: {
-  counts: Record<Band, number>;
-  subLines?: Partial<Record<Band, string>>;
-  active: Band | null;
-  onSelect: (band: Band | null) => void;
+  counts: Record<DisplayBand, number>;
+  subLines?: Partial<Record<DisplayBand, string>>;
+  active: DisplayBand | null;
+  onSelect: (band: DisplayBand | null) => void;
 }) {
   return (
-    <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-3">
+    <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
       {BAND_ORDER.map((band) => {
         const meta = BAND_META[band];
         const isActive = active === band;
