@@ -54,10 +54,6 @@ export default function WorkspaceSettingsPage() {
               value={company.office_locations.join(", ") || "—"}
             />
             <ReadOnlyField
-              label="Shortlist threshold (agent-internal)"
-              value={String(company.default_threshold)}
-            />
-            <ReadOnlyField
               label="Outreach signature"
               value={company.recruiter_signature ?? "—"}
             />

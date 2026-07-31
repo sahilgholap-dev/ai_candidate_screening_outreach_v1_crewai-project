@@ -90,9 +90,6 @@ function QueueDetail({
             {t === "email" ? "Email" : "SMS"}
           </button>
         ))}
-        <span className="-mb-px ml-auto cursor-not-allowed border-b-2 border-transparent px-4 py-2.5 text-[13px] font-medium text-text-light">
-          LinkedIn (Phase 2)
-        </span>
       </div>
 
       {tab === "email" ? (
