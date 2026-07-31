@@ -188,6 +188,74 @@ def _write(path: str, content: str) -> None:
         f.write(content or "")
 
 
+def draft_outreach_for_candidate(candidate_id: int) -> bool:
+    """Draft email/SMS for ONE candidate — used when a recruiter approves a
+    candidate the pipeline didn't shortlist (a Maybe, or a rescued reject).
+    Runs as a request background task; on failure drafts stay null and the
+    outreach queue keeps showing them as pending."""
+    db = SessionLocal()
+    try:
+        candidate = db.query(Candidate).filter(Candidate.id == candidate_id).first()
+        if not candidate or candidate.email_draft:
+            return False
+        campaign = (
+            db.query(Campaign).filter(Campaign.id == candidate.campaign_id).first()
+        )
+        if not campaign:
+            return False
+        company = (
+            db.query(Company).filter(Company.id == campaign.company_id).first()
+            if campaign.company_id
+            else None
+        )
+
+        role_summary = ""
+        if campaign.unified_profile:
+            try:
+                role_summary = UnifiedRequirements.model_validate(
+                    campaign.unified_profile
+                ).summary
+            except ValueError:
+                role_summary = ""
+        if not role_summary:
+            role_summary = (campaign.jd_text or "")[:1500] or "(no role summary available)"
+
+        outreach = OutreachCrew().crew().kickoff(
+            inputs={
+                "role_summary": role_summary,
+                "shortlisted_block": _shortlisted_block([candidate]),
+                **build_outreach_context(company, campaign),
+            }
+        )
+        drafts = (
+            {d.candidate_id: d for d in outreach.pydantic.drafts}
+            if outreach.pydantic
+            else {}
+        )
+        # Single-candidate run: accept an id-mismatched draft if it's the only one
+        draft = drafts.get(candidate.id) or (
+            next(iter(drafts.values())) if len(drafts) == 1 else None
+        )
+        if not draft:
+            return False
+        candidate.email_draft = draft.email_draft
+        candidate.sms_draft = draft.sms_draft
+        total = dict(campaign.token_usage or {})
+        _add_usage(total, _usage_dict(outreach.token_usage))
+        campaign.token_usage = total
+        db.commit()
+        return True
+    except Exception:
+        print(
+            f"[outreach] draft for candidate {candidate_id} failed:\n"
+            f"{traceback.format_exc()}",
+            flush=True,
+        )
+        return False
+    finally:
+        db.close()
+
+
 def run_campaign(campaign_id: int) -> None:
     upload_dir, jd_path = _campaign_paths(campaign_id)
     db = SessionLocal()

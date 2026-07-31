@@ -67,6 +67,51 @@ def test_send_blocks_placeholders(client, company_auth, create_campaign_fn):
     assert r.status_code == 422
 
 
+def test_approving_without_drafts_schedules_generation(
+    client, company_auth, create_campaign_fn, monkeypatch
+):
+    import ai_candidate_screening_outreach.pipeline.runner as runner_module
+
+    calls: list[int] = []
+    monkeypatch.setattr(
+        runner_module, "draft_outreach_for_candidate", lambda cid: calls.append(cid)
+    )
+    cid = create_campaign_fn(resumes=(("nd.txt", b"x"),)).json()["campaign_id"]
+    cand_id = _score_candidate(
+        cid, recommendation="Maybe", email_draft=None, sms_draft=None
+    )
+    r = _patch(client, company_auth, cid, cand_id, review_status="approved")
+    assert r.status_code == 200
+    assert calls == [cand_id]
+
+
+def test_approving_with_drafts_does_not_regenerate(
+    client, company_auth, create_campaign_fn, monkeypatch
+):
+    import ai_candidate_screening_outreach.pipeline.runner as runner_module
+
+    calls: list[int] = []
+    monkeypatch.setattr(
+        runner_module, "draft_outreach_for_candidate", lambda cid: calls.append(cid)
+    )
+    cid = create_campaign_fn(resumes=(("wd.txt", b"x"),)).json()["campaign_id"]
+    cand_id = _score_candidate(cid)  # has drafts from the helper
+    _patch(client, company_auth, cid, cand_id, review_status="approved")
+    assert calls == []
+
+
+def test_send_empty_body_blocked(client, company_auth, create_campaign_fn):
+    cid = create_campaign_fn(resumes=(("eb.txt", b"x"),)).json()["campaign_id"]
+    cand_id = _score_candidate(cid)
+    _patch(client, company_auth, cid, cand_id, review_status="approved")
+    r = client.post(
+        f"/api/campaigns/{cid}/candidates/{cand_id}/send",
+        json={"email_body": "   "},
+        headers=company_auth,
+    )
+    assert r.status_code == 422
+
+
 def test_send_records_and_moves_to_sent(client, company_auth, create_campaign_fn):
     cid = create_campaign_fn(resumes=(("q5.txt", b"x"),)).json()["campaign_id"]
     cand_id = _score_candidate(cid)

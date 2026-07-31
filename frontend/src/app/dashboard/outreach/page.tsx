@@ -96,14 +96,29 @@ function QueueDetail({
       </div>
 
       {tab === "email" ? (
-        <EmailPreview
-          from={fromEmail}
-          to={item.email ?? "on file — parsed from resume"}
-          subject={subject}
-          body={item.email_draft ?? ""}
-          onSubjectChange={setSubject}
-          onBodyChange={setEmailBody}
-        />
+        !item.email_draft ? (
+          <div className="flex min-h-[220px] items-center justify-center rounded-lg border border-dashed bg-gray-soft px-6 text-center">
+            <div>
+              <div className="mb-2 text-lg">✎</div>
+              <p className="text-[13.5px] font-medium">
+                Drafts are being written for this candidate…
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Usually under a minute. This page refreshes automatically —
+                you can also write the email yourself once it appears.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <EmailPreview
+            from={fromEmail}
+            to={item.email ?? "on file — parsed from resume"}
+            subject={subject}
+            body={item.email_draft ?? ""}
+            onSubjectChange={setSubject}
+            onBodyChange={setEmailBody}
+          />
+        )
       ) : (
         <div className="space-y-2">
           <Textarea
@@ -143,7 +158,7 @@ function QueueDetail({
             Skip this candidate
           </Button>
           <Button
-            disabled={send.isPending || found.length > 0}
+            disabled={send.isPending || found.length > 0 || !emailBody.trim()}
             onClick={() => send.mutate()}
           >
             {send.isPending ? "Recording…" : "Approve & send now"}
@@ -164,6 +179,10 @@ export default function OutreachQueuePage() {
   const { data: queue, isLoading } = useQuery<OutreachQueueItem[]>({
     queryKey: ["outreach-queue"],
     queryFn: () => api("/outreach/queue"),
+    // Freshly-approved candidates get their drafts written in the background —
+    // keep polling until every queue item has one.
+    refetchInterval: (query) =>
+      query.state.data?.some((i) => !i.email_draft) ? 5000 : false,
   });
 
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -274,7 +293,7 @@ export default function OutreachQueuePage() {
           </div>
 
           <QueueDetail
-            key={selected.candidate_id}
+            key={`${selected.candidate_id}-${selected.email_draft ? "drafted" : "pending"}`}
             item={selected}
             fromEmail={me?.email ?? "you"}
             companyName={company?.name ?? "our company"}

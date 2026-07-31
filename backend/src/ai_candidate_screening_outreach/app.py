@@ -16,6 +16,7 @@ from contextlib import asynccontextmanager
 
 import jwt
 from fastapi import (
+    BackgroundTasks,
     Depends,
     FastAPI,
     File,
@@ -600,6 +601,7 @@ async def update_candidate(
     campaign_id: int,
     candidate_id: int,
     body: CandidateUpdate,
+    background_tasks: BackgroundTasks,
     user: User = Depends(require_company_user),
     db: Session = Depends(get_db),
 ):
@@ -631,6 +633,14 @@ async def update_candidate(
         )
     db.commit()
     db.refresh(candidate)
+    # Approving a candidate the pipeline never drafted for (Maybe / rescued
+    # reject) generates their outreach in the background.
+    if changes.get("review_status") == "approved" and not candidate.email_draft:
+        from ai_candidate_screening_outreach.pipeline import runner as pipeline_runner
+
+        background_tasks.add_task(
+            pipeline_runner.draft_outreach_for_candidate, candidate.id
+        )
     return candidate
 
 
@@ -665,6 +675,11 @@ async def send_outreach(
         raise HTTPException(status_code=409, detail="Approve the candidate before sending")
     if candidate.sent_at is not None:
         raise HTTPException(status_code=409, detail="Outreach already sent for this candidate")
+    if not (body.email_body or "").strip():
+        raise HTTPException(
+            status_code=422,
+            detail="The email is empty — wait for the draft to finish or write one",
+        )
     if PLACEHOLDER_RE.search(body.email_body or ""):
         raise HTTPException(
             status_code=422,
