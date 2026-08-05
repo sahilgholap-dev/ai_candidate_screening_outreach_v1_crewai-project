@@ -28,9 +28,13 @@ import {
   saveBinding,
 } from "@/lib/folder-watch";
 import {
+  CustomWeights,
   defaultRequirements,
   MyCompany,
   RequirementsProfile,
+  WEIGHT_LABELS,
+  WEIGHT_PRESETS,
+  weightsTotal,
 } from "@/lib/requirements";
 
 function Field({
@@ -93,6 +97,74 @@ const InfoBanner = ({ children }: { children: React.ReactNode }) => (
     <div>{children}</div>
   </div>
 );
+
+const PRESET_CARDS: {
+  key: RequirementsProfile["weight_preset"];
+  title: string;
+  blurb: string;
+}[] = [
+  {
+    key: "balanced",
+    title: "Balanced",
+    blurb: "Skills matter most, but nothing dominates. The default.",
+  },
+  {
+    key: "skills_first",
+    title: "Skills-first",
+    blurb: "For roles where demonstrated skills outweigh everything else.",
+  },
+  {
+    key: "experience_first",
+    title: "Experience-first",
+    blurb: "For roles where years of doing the job count as much as skills.",
+  },
+  {
+    key: "custom",
+    title: "Custom",
+    blurb: "Set the five areas yourself.",
+  },
+];
+
+function CustomWeightsEditor({
+  value,
+  onChange,
+}: {
+  value: CustomWeights;
+  onChange: (v: CustomWeights) => void;
+}) {
+  const total = weightsTotal(value);
+  return (
+    <div className="rounded-lg border bg-white p-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        {(Object.keys(WEIGHT_LABELS) as (keyof CustomWeights)[]).map((k) => (
+          <Field key={k} label={WEIGHT_LABELS[k]}>
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              step={1}
+              value={value[k]}
+              onChange={(e) => {
+                const n = Math.max(
+                  0,
+                  Math.min(100, Math.round(Number(e.target.value) || 0)),
+                );
+                onChange({ ...value, [k]: n });
+              }}
+            />
+          </Field>
+        ))}
+      </div>
+      <p
+        className={`mt-3 text-xs font-medium ${
+          total === 100 ? "text-emerald-600" : "text-amber-600"
+        }`}
+      >
+        {total === 100 ? "Total: 100 ✓" : `Total: ${total} — must equal 100`}
+      </p>
+    </div>
+  );
+}
 
 export default function NewSearchPage() {
   const router = useRouter();
@@ -693,6 +765,63 @@ export default function NewSearchPage() {
               </Select>
             </Field>
           </div>
+        </AccordionSection>
+
+        <AccordionSection
+          title="Scoring priorities"
+          desc="Every candidate is scored out of 100 across five areas. Choose what matters most for this role — Balanced applies if you leave this alone."
+          pill="pref"
+        >
+          <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {PRESET_CARDS.map((p) => {
+              const active = req.weight_preset === p.key;
+              const weights = p.key === "custom" ? null : WEIGHT_PRESETS[p.key];
+              return (
+                <button
+                  key={p.key}
+                  type="button"
+                  onClick={() => {
+                    if (p.key === "custom") {
+                      set("weight_preset", "custom");
+                      if (!req.custom_weights) {
+                        const seed =
+                          req.weight_preset === "custom"
+                            ? WEIGHT_PRESETS.balanced
+                            : WEIGHT_PRESETS[req.weight_preset];
+                        set("custom_weights", { ...seed });
+                      }
+                    } else {
+                      set("weight_preset", p.key);
+                      set("custom_weights", null);
+                    }
+                  }}
+                  className={`rounded-lg border p-4 text-left transition-colors ${
+                    active
+                      ? "border-primary bg-verdict-pass-soft"
+                      : "border-border bg-white hover:border-input"
+                  }`}
+                >
+                  <div className="text-[13.5px] font-semibold">{p.title}</div>
+                  <p className="mt-1 text-xs text-muted-foreground">{p.blurb}</p>
+                  {weights && (
+                    <p className="mt-2 text-[11px] text-muted-foreground">
+                      {WEIGHT_LABELS.required_skills} {weights.required_skills}{" "}
+                      · {WEIGHT_LABELS.must_haves} {weights.must_haves} ·{" "}
+                      {WEIGHT_LABELS.experience} {weights.experience} ·{" "}
+                      {WEIGHT_LABELS.education} {weights.education} ·{" "}
+                      {WEIGHT_LABELS.preferred_skills} {weights.preferred_skills}
+                    </p>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          {req.weight_preset === "custom" && req.custom_weights && (
+            <CustomWeightsEditor
+              value={req.custom_weights}
+              onChange={(v) => set("custom_weights", v)}
+            />
+          )}
         </AccordionSection>
 
         <AccordionSection
