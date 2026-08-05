@@ -242,6 +242,15 @@ export default function NewSearchPage() {
       return setError("Choose a work mode in Location & work mode");
     if (!req.dealbreakers?.trim())
       return setError("Add at least one dealbreaker (with its one-line reason)");
+    if (
+      req.weight_preset === "custom" &&
+      (!req.custom_weights || weightsTotal(req.custom_weights) !== 100)
+    )
+      return setError(
+        `Scoring priorities must add up to 100 — currently ${
+          req.custom_weights ? weightsTotal(req.custom_weights) : 0
+        }. Adjust the Custom values.`,
+      );
 
     setSubmitting(true);
     try {
