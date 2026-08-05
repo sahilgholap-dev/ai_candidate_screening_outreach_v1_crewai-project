@@ -96,6 +96,53 @@ export type RequirementsProfile = {
   concern_signals: string[];
 };
 
+// Mirrors WEIGHT_PRESETS in backend schemas/requirements.py — keep in sync.
+export const WEIGHT_PRESETS: Record<
+  Exclude<RequirementsProfile["weight_preset"], "custom">,
+  CustomWeights
+> = {
+  balanced: {
+    required_skills: 40,
+    must_haves: 25,
+    experience: 15,
+    education: 10,
+    preferred_skills: 10,
+  },
+  skills_first: {
+    required_skills: 50,
+    must_haves: 20,
+    experience: 10,
+    education: 5,
+    preferred_skills: 15,
+  },
+  experience_first: {
+    required_skills: 30,
+    must_haves: 20,
+    experience: 30,
+    education: 10,
+    preferred_skills: 10,
+  },
+};
+
+// Recruiter-facing names for the five scoring areas, in display order.
+export const WEIGHT_LABELS: Record<keyof CustomWeights, string> = {
+  required_skills: "Required skills",
+  must_haves: "Must-haves",
+  experience: "Experience",
+  education: "Education",
+  preferred_skills: "Nice-to-have skills",
+};
+
+export function weightsTotal(w: CustomWeights): number {
+  return (
+    w.required_skills +
+    w.must_haves +
+    w.experience +
+    w.education +
+    w.preferred_skills
+  );
+}
+
 export function defaultRequirements(): RequirementsProfile {
   return {
     version: 1,
